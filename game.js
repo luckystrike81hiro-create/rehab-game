@@ -48,7 +48,7 @@ function playWipeSound() {
   filter.frequency.value = 3000;
   filter.Q.value = 0.8;
   const gain = ac.createGain();
-  gain.gain.value = 0.18;
+  gain.gain.value = 0.6;
   src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
   src.start();
 }
@@ -61,7 +61,7 @@ function playPopSound(freq = 520) {
   osc.type = 'sine';
   osc.frequency.setValueAtTime(freq, ac.currentTime);
   osc.frequency.exponentialRampToValueAtTime(freq * 0.4, ac.currentTime + 0.12);
-  gain.gain.setValueAtTime(0.25, ac.currentTime);
+  gain.gain.setValueAtTime(0.7, ac.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.15);
   osc.connect(gain); gain.connect(ac.destination);
   osc.start(); osc.stop(ac.currentTime + 0.15);
@@ -78,7 +78,7 @@ function playFinishSound() {
     osc.type = 'triangle';
     osc.frequency.value = freq;
     gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.3, t + 0.04);
+    gain.gain.linearRampToValueAtTime(0.7, t + 0.04);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
     osc.connect(gain); gain.connect(ac.destination);
     osc.start(t); osc.stop(t + 0.5);
