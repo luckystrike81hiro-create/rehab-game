@@ -36,61 +36,50 @@ function unlockAudio() {
 }
 
 
-// resume済みのAudioContextを返すヘルパー
-function getReadyAudio() {
+// 同期的に音を鳴らすヘルパー（touchmove内はユーザージェスチャー扱いなので直接OK）
+function playTone(freq, type, duration, gain_val, freqEnd) {
   const ac = getAudio();
-  return ac.resume().then(() => ac);
+  ac.resume(); // fire-and-forget でOK（2回目以降は即時）
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, ac.currentTime + duration);
+  gain.gain.setValueAtTime(gain_val, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.start(); osc.stop(ac.currentTime + duration);
 }
 
-// 拭き取り音：ピュッと下がるトーン
+// 拭き取り音
 function playWipeSound() {
   const now = Date.now();
   if (now - lastWipeSound < 150) return;
   lastWipeSound = now;
-  getReadyAudio().then(ac => {
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, ac.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(400, ac.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.5, ac.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
-    osc.connect(gain); gain.connect(ac.destination);
-    osc.start(); osc.stop(ac.currentTime + 0.12);
-  });
+  playTone(800, 'sine', 0.12, 0.5, 400);
 }
 
-// ポップ音：ポンと弾ける
+// ポップ音
 function playPopSound(freq = 600) {
-  getReadyAudio().then(ac => {
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, ac.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.3, ac.currentTime + 0.18);
-    gain.gain.setValueAtTime(0.8, ac.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.2);
-    osc.connect(gain); gain.connect(ac.destination);
-    osc.start(); osc.stop(ac.currentTime + 0.2);
-  });
+  playTone(freq, 'triangle', 0.2, 0.8, freq * 0.3);
 }
 
 // フィニッシュ音：ファンファーレ
 function playFinishSound() {
-  getReadyAudio().then(ac => {
-    const notes = [523, 659, 784, 1047, 1319];
-    notes.forEach((freq, i) => {
-      const osc = ac.createOscillator();
-      const gain = ac.createGain();
-      const t = ac.currentTime + i * 0.1;
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.7, t + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-      osc.connect(gain); gain.connect(ac.destination);
-      osc.start(t); osc.stop(t + 0.5);
-    });
+  const ac = getAudio();
+  ac.resume();
+  const notes = [523, 659, 784, 1047, 1319];
+  notes.forEach((freq, i) => {
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    const t = ac.currentTime + i * 0.1;
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.7, t + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(t); osc.stop(t + 0.5);
   });
 }
 
