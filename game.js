@@ -45,19 +45,19 @@ let dirtObjects = [];
 
 // --- パーティクル ---
 const particles = [];
-const MAX_PARTICLES = 60;
+const MAX_PARTICLES = 150;
 
 function emitParticles(x, y, color) {
-  const count = 5 + Math.floor(Math.random() * 5);
+  const count = 12 + Math.floor(Math.random() * 10);
   for (let i = 0; i < count; i++) {
     if (particles.length >= MAX_PARTICLES) break;
     const angle = Math.random() * Math.PI * 2;
-    const speed = 1.5 + Math.random() * 3.5;
+    const speed = 3.5 + Math.random() * 7;
     particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      r: 2 + Math.random() * 4,
+      r: 4 + Math.random() * 9,
       color,
       alpha: 1,
       life: 1,
@@ -72,7 +72,7 @@ function updateParticles() {
     p.y += p.vy;
     p.vx *= 0.88;
     p.vy *= 0.88;
-    p.life -= 0.045;
+    p.life -= 0.028;
     p.alpha = Math.max(0, p.life);
     if (p.life <= 0) particles.splice(i, 1);
   }
