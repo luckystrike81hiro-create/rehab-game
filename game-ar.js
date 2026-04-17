@@ -20,12 +20,12 @@ resize();
 // モンスター定義（angle/elevation はランダム生成で上書きされる）
 // =============================================
 const MONSTERS = [
-  { id: 1, name: 'ピンクモン',   color: '#FF2D78', hp: 2, emoji: '👾', scale: 1.0, angle: 0, elevation: 0 },
-  { id: 2, name: 'オレンジモン', color: '#FF6B00', hp: 3, emoji: '🤢', scale: 1.2, angle: 0, elevation: 0 },
-  { id: 3, name: 'シアンモン',   color: '#00CFFF', hp: 1, emoji: '👻', scale: 0.9, angle: 0, elevation: 0 },
-  { id: 4, name: 'グリーンモン', color: '#39FF14', hp: 2, emoji: '🦠', scale: 1.1, angle: 0, elevation: 0 },
-  { id: 5, name: 'パープルモン', color: '#BF5FFF', hp: 3, emoji: '😈', scale: 1.3, angle: 0, elevation: 0 },
-  { id: 6, name: 'イエローモン', color: '#FFE600', hp: 1, emoji: '🌟', scale: 0.8, angle: 0, elevation: 0 },
+  { id: 1, name: 'ピンクモン',   color: '#FF2D78', hp: 2, emoji: '👾', scale: 1.0, angle: 0,   elevation: 0 },
+  { id: 2, name: 'オレンジモン', color: '#FF6B00', hp: 3, emoji: '🤢', scale: 1.2, angle: 0,   elevation: 0 },
+  { id: 3, name: 'シアンモン',   color: '#00CFFF', hp: 1, emoji: '👻', scale: 0.9, angle: 0,   elevation: 0 },
+  { id: 4, name: 'グリーンモン', color: '#39FF14', hp: 2, emoji: '🦠', scale: 1.1, angle: 0,   elevation: 0 },
+  { id: 5, name: 'パープルモン', color: '#BF5FFF', hp: 3, emoji: '😈', scale: 1.3, angle: 0,   elevation: 0 },
+  { id: 6, name: 'イエローモン', color: '#FFE600', hp: 1, emoji: '🌟', scale: 0.8, angle: 0,   elevation: 0 },
 ];
 
 // ランダム配置（ページロードごとに再配置・最低60°離す）
@@ -40,11 +40,11 @@ const MONSTERS = [
     } while (tries < 30 && usedAngles.some(a => Math.abs(((angle - a + 540) % 360) - 180) < 60));
     usedAngles.push(angle);
     m.angle     = angle;
-    m.elevation = Math.floor(Math.random() * 161) - 80; // -80〜+80
+    m.elevation = Math.floor(Math.random() * 61) - 30; // -30〜+30
   });
 })();
 
-// 倒したモンスターIDを管理（3Dモードから戻った場合のみ引き継ぎ）
+// 倒したモンスターIDを管理（3Dモードから戻った場合のみ引き継ぐ）
 const _urlParams = new URLSearchParams(window.location.search);
 if (!_urlParams.get('cleared')) {
   sessionStorage.removeItem('defeatedMonsters'); // 新規入場時はリセット
@@ -62,12 +62,12 @@ function getLiveMonsters() {
 // =============================================
 let heading = 0;
 let tiltY   = 0;
-let smoothHeading = 0;
+let smoothHeading = 0; // スムージング後の値（描画に使う）
 let smoothTilt    = 0;
 let gyroAvailable = false;
 let dragStart = null;
 
-// 角度のlerp
+// 角度のlerp（0-360の折り返しを考慮）
 function lerpAngle(a, b, t) {
   let diff = ((b - a) + 540) % 360 - 180;
   return (a + diff * t + 360) % 360;
@@ -77,6 +77,7 @@ function lerpAngle(a, b, t) {
 // 許可要求 → カメラ＋ジャイロ起動
 // =============================================
 function startAR() {
+  // getUserMediaはユーザージェスチャー内で呼ぶ必要がある
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     showDebug('❌ このブラウザはカメラ非対応');
   } else {
@@ -90,30 +91,35 @@ function startAR() {
         showDebug('❌ カメラ: ' + err.name + ' - ' + err.message);
       });
   }
+
   const granted = sessionStorage.getItem('gyroGranted');
   if (granted === '1') {
     setupGyro();
   } else {
     showDebug('タイトル画面から入ってください');
   }
+
   document.getElementById('permScreen').style.display = 'none';
 }
 
+// 常にボタンタップで起動（getUserMediaのジェスチャー要件のため）
 document.getElementById('startBtn').addEventListener('click', startAR);
 
 function setupGyro() {
   gyroAvailable = true;
   const dbg = document.getElementById('gyroDebug');
   if (dbg) dbg.style.display = 'block';
+
   window.addEventListener('deviceorientation', e => {
     if (e.alpha !== null) {
-      heading = e.alpha;
+      heading = e.alpha; // 左右はそのまま
       tiltY   = (e.beta || 0);
       if (dbg) dbg.textContent = `h:${Math.round(smoothHeading)}° t:${Math.round(smoothTilt)}°`;
     }
   }, true);
 }
 
+// デバッグ表示（一定時間で消える）
 function showDebug(msg) {
   let el = document.getElementById('debugMsg');
   if (!el) {
@@ -127,7 +133,7 @@ function showDebug(msg) {
   el._timer = setTimeout(() => el.remove(), 4000);
 }
 
-// PC用：マウスドラッグ
+// PC用：マウスドラッグで方向をシミュレート
 canvas.addEventListener('mousedown', e => { dragStart = { x: e.clientX, heading }; });
 window.addEventListener('mousemove', e => {
   if (!dragStart) return;
@@ -139,7 +145,7 @@ window.addEventListener('mouseup', () => { dragStart = null; });
 // =============================================
 // モンスター表示判定
 // =============================================
-const VIEW_ANGLE = 50;
+const VIEW_ANGLE = 50; // ±何度で画面に表示するか
 
 function angleDiff(a, b) {
   let d = ((a - b) + 360) % 360;
@@ -150,10 +156,12 @@ function angleDiff(a, b) {
 function getScreenPos(monster) {
   const diff = angleDiff(monster.angle, smoothHeading);
   if (Math.abs(diff) > VIEW_ANGLE) return null;
+
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
-  const x  = cx - (diff / VIEW_ANGLE) * cx * 0.8;
-  const tiltOffset = (smoothTilt - 60) * 9;
+  const x  = cx - (diff / VIEW_ANGLE) * cx * 0.8; // 左右方向を補正
+  // 縦位置：モンスター固有の仰角 + チルトで全体スクロール
+  const tiltOffset = (smoothTilt - 60) * 7;
   const y = cy - monster.elevation * 8 + tiltOffset;
   return { x, y };
 }
@@ -168,13 +176,18 @@ function drawMonster(m, pos) {
   const bob  = Math.sin(time * 0.05 + m.id) * 8;
   const x    = pos.x;
   const y    = pos.y + bob;
+
+  // 距離感（角度差が小さいほど大きく）
   const diff = Math.abs(angleDiff(m.angle, heading));
   const sizeScale = 1 - diff / VIEW_ANGLE * 0.4;
   const sz = s * sizeScale;
 
+  // グロー
   ctx.save();
   ctx.shadowColor = m.color;
   ctx.shadowBlur  = 30;
+
+  // ブロブ本体
   ctx.beginPath();
   const pts = 10;
   for (let i = 0; i < pts; i++) {
@@ -191,25 +204,28 @@ function drawMonster(m, pos) {
   ctx.fill();
   ctx.restore();
 
+  // 目
   ctx.globalAlpha = 1;
   ctx.font = `${sz * 0.8}px serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(m.emoji, x, y);
 
+  // 名前
   ctx.font = 'bold 14px Arial';
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillText(m.name, x, y + sz * 0.9 + 4);
 
+  // HPバー
   const barW = sz * 1.4;
   const barX = x - barW / 2;
   const barY = y + sz * 0.9 + 22;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(barX, barY, barW, 8);
   ctx.fillStyle = m.color;
-  ctx.fillRect(barX, barY, barW, 8);
+  ctx.fillRect(barX, barY, barW, 8); // 探索モードはHPフル表示
 
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
@@ -227,6 +243,7 @@ function handleTap(tapX, tapY) {
     const dx = tapX - pos.x;
     const dy = tapY - (pos.y + Math.sin(time * 0.05 + m.id) * 8);
     if (Math.sqrt(dx*dx + dy*dy) < s * 1.1) {
+      // タップしたモンスターのデータをsessionStorageに保存して3Dモードへ
       sessionStorage.setItem('currentMonster', JSON.stringify(m));
       window.location.href = 'mode-3d.html?from=ar';
       return;
@@ -252,6 +269,7 @@ function drawRadar() {
   const cx = w/2, cy = h/2, r = w/2 - 6;
   radarCtx.clearRect(0, 0, w, h);
 
+  // 背景円
   radarCtx.beginPath();
   radarCtx.arc(cx, cy, r, 0, Math.PI*2);
   radarCtx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -260,13 +278,16 @@ function drawRadar() {
   radarCtx.lineWidth = 1;
   radarCtx.stroke();
 
-  // 前方マーカー（上=視点方向）
-  radarCtx.fillStyle = 'rgba(255,255,255,0.5)';
+  // 方位文字
+  radarCtx.fillStyle = 'rgba(255,255,255,0.4)';
   radarCtx.font = '10px Arial';
   radarCtx.textAlign = 'center';
-  radarCtx.fillText('▲', cx, cy - r + 10);
+  radarCtx.fillText('N', cx, cy - r + 12);
+  radarCtx.fillText('S', cx, cy + r - 4);
+  radarCtx.fillText('E', cx + r - 6, cy + 4);
+  radarCtx.fillText('W', cx - r + 6, cy + 4);
 
-  // モンスター点（カメラと同じ diff で方向を統一）
+  // モンスター点（カメラと同じ diff を使って方向を統一）
   const live = getLiveMonsters();
   for (const m of live) {
     const diff = angleDiff(m.angle, heading);
@@ -280,7 +301,7 @@ function drawRadar() {
     radarCtx.fill();
   }
 
-  // 自分（中心）
+  // 自分（中心の矢印）
   radarCtx.beginPath();
   radarCtx.arc(cx, cy, 5, 0, Math.PI*2);
   radarCtx.fillStyle = '#fff';
@@ -294,6 +315,8 @@ function updateUI() {
   const live = getLiveMonsters();
   document.getElementById('monsterCount').textContent = `残り: ${live.length} 体`;
   document.getElementById('heading').textContent = `${Math.round(heading)}°`;
+
+  // コンパスラベル
   const dirs = ['N','NE','E','SE','S','SW','W','NW','N'];
   const idx = Math.round(heading / 45) % 8;
   document.getElementById('compass').textContent = dirs[idx];
@@ -306,11 +329,13 @@ function loop() {
   requestAnimationFrame(loop);
   time++;
 
+  // スムージング更新（ここで毎フレーム適用）
   smoothHeading = lerpAngle(smoothHeading, heading, 0.08);
   smoothTilt    = smoothTilt + (tiltY - smoothTilt) * 0.08;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // 視野外ガイド（方向矢印）
   const live = getLiveMonsters();
   for (const m of live) {
     const diff = angleDiff(m.angle, heading);
@@ -335,6 +360,7 @@ function loop() {
     }
   }
 
+  // 全滅チェック
   if (live.length === 0) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);

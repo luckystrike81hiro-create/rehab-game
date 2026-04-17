@@ -18,6 +18,8 @@
       user-select: none;
       touch-action: manipulation;
     }
+
+    /* 背景の汚れアニメーション */
     .bg-blob {
       position: fixed;
       border-radius: 50%;
@@ -29,6 +31,8 @@
       from { transform: translate(0, 0) scale(1); }
       to   { transform: translate(30px, -20px) scale(1.1); }
     }
+
+    /* タイトル */
     #title {
       font-size: 42px;
       font-weight: bold;
@@ -45,6 +49,8 @@
       margin-bottom: 60px;
       letter-spacing: 1px;
     }
+
+    /* モードボタン */
     .mode-btn {
       width: 280px;
       margin: 10px 0;
@@ -60,17 +66,37 @@
       -webkit-tap-highlight-color: transparent;
     }
     .mode-btn:active { transform: scale(0.96); }
-    .btn-flat { background: linear-gradient(135deg, #FF2D78, #FF6B00); box-shadow: 0 8px 30px rgba(255,45,120,0.4); }
-    .btn-3d   { background: linear-gradient(135deg, #00CFFF, #BF5FFF); box-shadow: 0 8px 30px rgba(0,207,255,0.4); }
-    .btn-ar   { background: linear-gradient(135deg, #39FF14, #00CFFF); box-shadow: 0 8px 30px rgba(57,255,20,0.4); }
+
+    .btn-flat {
+      background: linear-gradient(135deg, #FF2D78, #FF6B00);
+      box-shadow: 0 8px 30px rgba(255,45,120,0.4);
+    }
+    .btn-3d {
+      background: linear-gradient(135deg, #00CFFF, #BF5FFF);
+      box-shadow: 0 8px 30px rgba(0,207,255,0.4);
+    }
+    .btn-ar {
+      background: linear-gradient(135deg, #39FF14, #00CFFF);
+      box-shadow: 0 8px 30px rgba(57,255,20,0.4);
+    }
+
     .btn-icon { font-size: 32px; }
     .btn-text { color: #fff; text-align: left; }
     .btn-title { font-size: 18px; font-weight: bold; display: block; }
     .btn-desc  { font-size: 12px; opacity: 0.8; display: block; margin-top: 2px; }
-    #version { position: fixed; bottom: 16px; color: rgba(255,255,255,0.2); font-size: 12px; }
+
+    /* バージョン */
+    #version {
+      position: fixed;
+      bottom: 16px;
+      color: rgba(255,255,255,0.2);
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
+
+  <!-- 背景ブロブ -->
   <div class="bg-blob" style="width:300px;height:300px;background:#FF2D78;top:-50px;left:-80px;animation-delay:0s;"></div>
   <div class="bg-blob" style="width:250px;height:250px;background:#00CFFF;bottom:-30px;right:-60px;animation-delay:2s;"></div>
   <div class="bg-blob" style="width:200px;height:200px;background:#39FF14;bottom:30%;left:-40px;animation-delay:4s;"></div>
@@ -80,34 +106,51 @@
 
   <a class="mode-btn btn-flat" href="mode-flat.html" id="btn-flat">
     <span class="btn-icon">🧹</span>
-    <span class="btn-text"><span class="btn-title">フラットモード</span><span class="btn-desc">画面の汚れを指で拭き取ろう</span></span>
+    <span class="btn-text">
+      <span class="btn-title">フラットモード</span>
+      <span class="btn-desc">画面の汚れを指で拭き取ろう</span>
+    </span>
   </a>
+
   <a class="mode-btn btn-3d" href="mode-3d.html" id="btn-3d">
     <span class="btn-icon">🧊</span>
-    <span class="btn-text"><span class="btn-title">3Dモード</span><span class="btn-desc">立体モデルに付いた汚れを掃除</span></span>
+    <span class="btn-text">
+      <span class="btn-title">3Dモード</span>
+      <span class="btn-desc">立体モデルに付いた汚れを掃除</span>
+    </span>
   </a>
+
   <button class="mode-btn btn-ar" id="btn-ar" onclick="goAR()">
     <span class="btn-icon">📷</span>
-    <span class="btn-text"><span class="btn-title">モンスター探索</span><span class="btn-desc">カメラで部屋を探索して汚れモンスターを発見！</span></span>
+    <span class="btn-text">
+      <span class="btn-title">モンスター探索</span>
+      <span class="btn-desc">カメラで部屋を探索して汚れモンスターを発見！</span>
+    </span>
   </button>
 
-  <div id="version">v1.5 (2026-04-18)</div>
+  <div id="version">v1.6 (2026-04-18)</div>
 
   <script>
+    // タイトル画面のタップでAudioContextを初期化（iOS音問題の解決）
     let audioCtx = null;
     function initAudio() {
       if (audioCtx) return;
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // サイレントバッファでアンロック
       const buf = audioCtx.createBuffer(1, 1, 22050);
       const src = audioCtx.createBufferSource();
       src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
       audioCtx.resume();
+      // sessionStorageに「音初期化済み」を保存
       sessionStorage.setItem('audioUnlocked', '1');
     }
+
     document.querySelectorAll('.mode-btn').forEach(btn => {
       btn.addEventListener('touchstart', e => { initAudio(); }, { passive: true });
       btn.addEventListener('click', e => { initAudio(); });
     });
+
+    // モンスター探索ボタン：ジャイロ許可を取ってから遷移
     function goAR() {
       if (typeof DeviceOrientationEvent !== 'undefined' &&
           typeof DeviceOrientationEvent.requestPermission === 'function') {
