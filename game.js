@@ -6,6 +6,70 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// =============================================
+// 効果音（Web Audio API）
+// =============================================
+let audioCtx = null;
+let lastWipeSound = 0;
+
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// 拭き取り音：短いシュッ
+function playWipeSound() {
+  const now = Date.now();
+  if (now - lastWipeSound < 120) return; // 連打制限
+  lastWipeSound = now;
+  const ac = getAudio();
+  const buf = ac.createBuffer(1, ac.sampleRate * 0.08, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  const filter = ac.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 3000;
+  filter.Q.value = 0.8;
+  const gain = ac.createGain();
+  gain.gain.value = 0.18;
+  src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
+  src.start();
+}
+
+// ポップ音：汚れに当たった瞬間
+function playPopSound(freq = 520) {
+  const ac = getAudio();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.4, ac.currentTime + 0.12);
+  gain.gain.setValueAtTime(0.25, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.15);
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.start(); osc.stop(ac.currentTime + 0.15);
+}
+
+// フィニッシュ音：ファンファーレ
+function playFinishSound() {
+  const ac = getAudio();
+  const notes = [523, 659, 784, 1047, 1319];
+  notes.forEach((freq, i) => {
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    const t = ac.currentTime + i * 0.1;
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.3, t + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(t); osc.stop(t + 0.5);
+  });
+}
+
 // --- キャンバスサイズ ---
 function resize() {
   canvas.width = window.innerWidth;
@@ -42,10 +106,46 @@ const DIRT_TYPES = [
 ];
 
 let dirtObjects = [];
+let finishTimer = null;
+
+// =============================================
+// フィニッシュ花火
+// =============================================
+const FINISH_COLORS = ['#FF2D78','#FF6B00','#00CFFF','#39FF14','#BF5FFF','#FFE600','#ffffff'];
+
+function launchFinishFireworks() {
+  let count = 0;
+  const max = 18;
+  function burst() {
+    if (count >= max) return;
+    count++;
+    const x = 60 + Math.random() * (canvas.width - 120);
+    const y = 80 + Math.random() * (canvas.height * 0.7);
+    const col = FINISH_COLORS[Math.floor(Math.random() * FINISH_COLORS.length)];
+    // 大量の粒を一気に放出
+    for (let i = 0; i < 40; i++) {
+      if (particles.length >= MAX_PARTICLES * 3) break;
+      const angle = (i / 40) * Math.PI * 2 + Math.random() * 0.3;
+      const speed = 4 + Math.random() * 10;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: 5 + Math.random() * 10,
+        color: col,
+        alpha: 1,
+        life: 1,
+      });
+    }
+    playPopSound(300 + Math.random() * 600);
+    setTimeout(burst, 180 + Math.random() * 200);
+  }
+  burst();
+}
 
 // --- パーティクル ---
 const particles = [];
-const MAX_PARTICLES = 150;
+const MAX_PARTICLES = 300;
 
 function emitParticles(x, y, color) {
   const count = 12 + Math.floor(Math.random() * 10);
@@ -274,6 +374,8 @@ function wipe(touches) {
   if (touches.length === 0) return;
   const wipeRadius = calcWipeRadius(touches);
 
+  playWipeSound();
+
   // wipeCanvasに消去ストロークを蓄積（白で書く）
   for (const t of touches) {
     const grad = wipeCtx.createRadialGradient(t.x, t.y, 0, t.x, t.y, wipeRadius);
@@ -297,6 +399,7 @@ function wipe(touches) {
         d.hp = Math.max(0, d.hp - 0.12);
         hpChanged = true;
         emitParticles(t.x, t.y, d.baseColor);
+        playPopSound();
       }
     }
   }
@@ -339,6 +442,7 @@ function getTouches(e) {
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  getAudio(); // iOSのためにタッチ時にAudioContext初期化
   state.fingers = getTouches(e);
 }, { passive: false });
 
@@ -384,6 +488,8 @@ function updateUI() {
     state.running = false;
     state.elapsed = Math.floor((Date.now() - state.startTime) / 1000);
     showMessage(`✨ きれいになった！\n${m}:${s}`);
+    playFinishSound();
+    launchFinishFireworks();
   }
 }
 
