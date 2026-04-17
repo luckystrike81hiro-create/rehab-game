@@ -35,19 +35,18 @@ function unlockAudio() {
   });
 }
 
-// テスト用ボタンの設定
-document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('audioBtn');
-  if (!btn) return;
-  btn.addEventListener('touchstart', e => {
+// テスト用ボタン（game.jsはbodyの末尾なのでDOMはすでに存在する）
+const _btn = document.getElementById('audioBtn');
+if (_btn) {
+  _btn.addEventListener('touchstart', e => {
     e.stopPropagation();
-    btn.style.background = '#ff6600';
-    btn.textContent = '⏳ 起動中...';
+    _btn.style.background = '#ff6600';
+    _btn.textContent = '⏳ 起動中...';
     const ac = getAudio();
     ac.resume().then(() => {
-      console.log('AudioContext state after resume:', ac.state);
-      btn.style.background = '#00aa44';
-      btn.textContent = '✅ state:' + ac.state;
+      console.log('AudioContext state:', ac.state);
+      _btn.style.background = '#00aa44';
+      _btn.textContent = '✅ ' + ac.state;
       const osc = ac.createOscillator();
       const gain = ac.createGain();
       osc.type = 'sine';
@@ -58,11 +57,11 @@ document.addEventListener('DOMContentLoaded', () => {
       osc.start(); osc.stop(ac.currentTime + 1.0);
     }).catch(err => {
       console.error('resume failed:', err);
-      btn.style.background = '#aa0000';
-      btn.textContent = '❌ ' + err.message;
+      _btn.style.background = '#aa0000';
+      _btn.textContent = '❌ ' + err.message;
     });
   }, { passive: false });
-});
+}
 
 // 拭き取り音：ピュッと下がるトーン
 function playWipeSound() {
