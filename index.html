@@ -120,15 +120,15 @@
     </span>
   </a>
 
-  <a class="mode-btn btn-ar" href="mode-ar.html" id="btn-ar">
+  <button class="mode-btn btn-ar" id="btn-ar" onclick="goAR()">
     <span class="btn-icon">📷</span>
     <span class="btn-text">
       <span class="btn-title">モンスター探索</span>
       <span class="btn-desc">カメラで部屋を探索して汚れモンスターを発見！</span>
     </span>
-  </a>
+  </button>
 
-  <div id="version">v0.5 (2026-04-17)</div>
+  <div id="version">v0.6 (2026-04-17)</div>
 
   <script>
     // タイトル画面のタップでAudioContextを初期化（iOS音問題の解決）
@@ -146,13 +146,28 @@
     }
 
     document.querySelectorAll('.mode-btn').forEach(btn => {
-      btn.addEventListener('touchstart', e => {
-        initAudio();
-      }, { passive: true });
-      btn.addEventListener('click', e => {
-        initAudio();
-      });
+      btn.addEventListener('touchstart', e => { initAudio(); }, { passive: true });
+      btn.addEventListener('click', e => { initAudio(); });
     });
+
+    // モンスター探索ボタン：ジャイロ許可を取ってから遷移
+    function goAR() {
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(res => {
+            sessionStorage.setItem('gyroGranted', res === 'granted' ? '1' : '0');
+            window.location.href = 'mode-ar.html';
+          })
+          .catch(() => {
+            sessionStorage.setItem('gyroGranted', '0');
+            window.location.href = 'mode-ar.html';
+          });
+      } else {
+        sessionStorage.setItem('gyroGranted', '1');
+        window.location.href = 'mode-ar.html';
+      }
+    }
   </script>
 </body>
 </html>
