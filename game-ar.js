@@ -78,10 +78,16 @@ function startAll() {
 function setupGyro() {
   gyroAvailable = true;
   showDebug('ジャイロ: OK');
+  // HTMLデバッグ表示を出す
+  const dbg = document.getElementById('gyroDebug');
+  if (dbg) dbg.style.display = 'block';
+
   window.addEventListener('deviceorientation', e => {
     if (e.alpha !== null) {
       heading = e.alpha;
       tiltY   = (e.beta || 0);
+      // HTMLに直接書き込む（キャンバス不要）
+      if (dbg) dbg.textContent = `heading: ${Math.round(heading)}°`;
     }
   }, true);
 }
@@ -333,15 +339,6 @@ function loop() {
     ctx.font = '18px Arial';
     ctx.fillText('おつかれさまでした！', canvas.width/2, canvas.height/2 + 48);
   }
-
-  // デバッグ：ジャイロ値を画面に大きく表示
-  ctx.fillStyle = gyroAvailable ? 'rgba(0,255,0,0.8)' : 'rgba(255,100,0,0.8)';
-  ctx.font = 'bold 18px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(
-    gyroAvailable ? `▶ heading: ${Math.round(heading)}°` : '⚠ ジャイロ未接続',
-    canvas.width / 2, canvas.height - 160
-  );
 
   drawRadar();
   updateUI();
