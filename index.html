@@ -7,80 +7,152 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #1a1a2e;
-      overflow: hidden;
-      touch-action: none;
-      user-select: none;
-    }
-    #gameCanvas {
-      display: block;
-      cursor: none;
-    }
-    #ui {
-      position: fixed;
-      top: 0; left: 0; right: 0;
+      background: #0d0d1a;
+      min-height: 100vh;
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
-      padding: 12px 20px;
-      background: rgba(0,0,0,0.5);
-      color: #fff;
-      font-family: 'Arial', sans-serif;
-      font-size: 18px;
-      pointer-events: none;
-      z-index: 10;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      user-select: none;
+      touch-action: manipulation;
     }
-    #progressBar {
+
+    /* 背景の汚れアニメーション */
+    .bg-blob {
       position: fixed;
-      bottom: 0; left: 0;
-      height: 8px;
-      background: linear-gradient(90deg, #00ff88, #00cfff);
-      transition: width 0.1s;
-      z-index: 10;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.15;
+      animation: drift 8s ease-in-out infinite alternate;
     }
-    #message {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      color: #fff;
-      font-family: 'Arial', sans-serif;
-      font-size: 36px;
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, -20px) scale(1.1); }
+    }
+
+    /* タイトル */
+    #title {
+      font-size: 42px;
       font-weight: bold;
-      text-shadow: 0 0 20px rgba(0,255,136,0.8);
-      pointer-events: none;
-      z-index: 20;
+      color: #fff;
       text-align: center;
-      opacity: 0;
-      transition: opacity 0.3s;
+      margin-bottom: 8px;
+      text-shadow: 0 0 30px rgba(255,100,150,0.6);
+      letter-spacing: 2px;
     }
-    #fingerCount {
-      position: fixed;
-      bottom: 20px; right: 20px;
-      color: rgba(255,255,255,0.5);
-      font-family: 'Arial', sans-serif;
+    #subtitle {
       font-size: 14px;
-      pointer-events: none;
-      z-index: 10;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+      margin-bottom: 60px;
+      letter-spacing: 1px;
+    }
+
+    /* モードボタン */
+    .mode-btn {
+      width: 280px;
+      margin: 10px 0;
+      padding: 20px 24px;
+      border-radius: 18px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mode-btn:active { transform: scale(0.96); }
+
+    .btn-flat {
+      background: linear-gradient(135deg, #FF2D78, #FF6B00);
+      box-shadow: 0 8px 30px rgba(255,45,120,0.4);
+    }
+    .btn-3d {
+      background: linear-gradient(135deg, #00CFFF, #BF5FFF);
+      box-shadow: 0 8px 30px rgba(0,207,255,0.4);
+    }
+    .btn-ar {
+      background: linear-gradient(135deg, #39FF14, #00CFFF);
+      box-shadow: 0 8px 30px rgba(57,255,20,0.4);
+    }
+
+    .btn-icon { font-size: 32px; }
+    .btn-text { color: #fff; text-align: left; }
+    .btn-title { font-size: 18px; font-weight: bold; display: block; }
+    .btn-desc  { font-size: 12px; opacity: 0.8; display: block; margin-top: 2px; }
+
+    /* バージョン */
+    #version {
+      position: fixed;
+      bottom: 16px;
+      color: rgba(255,255,255,0.2);
+      font-size: 12px;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-  <div id="ui">
-    <div id="cleanPercent">清潔度: 0%</div>
-    <div id="fingerInfo">指: 0本</div>
-    <div id="timer">00:00</div>
-  </div>
-  <div id="progressBar" style="width:0%"></div>
-  <div id="message" id="message"></div>
-  <div id="fingerCount"></div>
-  <a href="mode-3d.html" style="
-    position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
-    background:rgba(0,0,0,0.6); color:#fff; border:1px solid rgba(255,255,255,0.4);
-    border-radius:24px; padding:10px 24px; font-size:15px; font-family:Arial;
-    z-index:100; text-decoration:none;
-  ">🧊 3Dモード</a>
 
-  <script src="game.js"></script>
+  <!-- 背景ブロブ -->
+  <div class="bg-blob" style="width:300px;height:300px;background:#FF2D78;top:-50px;left:-80px;animation-delay:0s;"></div>
+  <div class="bg-blob" style="width:250px;height:250px;background:#00CFFF;bottom:-30px;right:-60px;animation-delay:2s;"></div>
+  <div class="bg-blob" style="width:200px;height:200px;background:#39FF14;bottom:30%;left:-40px;animation-delay:4s;"></div>
+
+  <div id="title">ふきふきゲーム</div>
+  <div id="subtitle">FUKIFUKI GAME</div>
+
+  <a class="mode-btn btn-flat" href="mode-flat.html" id="btn-flat">
+    <span class="btn-icon">🧹</span>
+    <span class="btn-text">
+      <span class="btn-title">フラットモード</span>
+      <span class="btn-desc">画面の汚れを指で拭き取ろう</span>
+    </span>
+  </a>
+
+  <a class="mode-btn btn-3d" href="mode-3d.html" id="btn-3d">
+    <span class="btn-icon">🧊</span>
+    <span class="btn-text">
+      <span class="btn-title">3Dモード</span>
+      <span class="btn-desc">立体モデルに付いた汚れを掃除</span>
+    </span>
+  </a>
+
+  <a class="mode-btn btn-ar" href="mode-ar.html" id="btn-ar">
+    <span class="btn-icon">📷</span>
+    <span class="btn-text">
+      <span class="btn-title">モンスター探索</span>
+      <span class="btn-desc">カメラで部屋を探索して汚れモンスターを発見！</span>
+    </span>
+  </a>
+
+  <div id="version">v0.3</div>
+
+  <script>
+    // タイトル画面のタップでAudioContextを初期化（iOS音問題の解決）
+    let audioCtx = null;
+    function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // サイレントバッファでアンロック
+      const buf = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
+      audioCtx.resume();
+      // sessionStorageに「音初期化済み」を保存
+      sessionStorage.setItem('audioUnlocked', '1');
+    }
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('touchstart', e => {
+        initAudio();
+      }, { passive: true });
+      btn.addEventListener('click', e => {
+        initAudio();
+      });
+    });
+  </script>
 </body>
 </html>
