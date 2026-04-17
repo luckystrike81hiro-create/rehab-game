@@ -61,6 +61,37 @@ function initDirt() {
   updateUI();
 }
 
+// スプラット形状の頂点を生成（固定シード）
+function generateSplatPoints(cx, cy, r, count) {
+  const points = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    // 半径をランダムに凸凹させてアメーバ形状に
+    const noise = 0.5 + Math.random() * 0.9;
+    points.push({
+      x: cx + Math.cos(angle) * r * noise,
+      y: cy + Math.sin(angle) * r * noise,
+    });
+  }
+  return points;
+}
+
+// 飛び散り小滴を生成
+function generateDroplets(cx, cy, r) {
+  const drops = [];
+  const count = 4 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = r * (0.8 + Math.random() * 1.2);
+    drops.push({
+      x: cx + Math.cos(angle) * dist,
+      y: cy + Math.sin(angle) * dist,
+      r: r * (0.1 + Math.random() * 0.25),
+    });
+  }
+  return drops;
+}
+
 // 汚れオブジェクトを生成
 function generateDirt() {
   const headerH = 60;
@@ -68,17 +99,36 @@ function generateDirt() {
 
   for (let i = 0; i < count; i++) {
     const type = DIRT_TYPES[Math.floor(Math.random() * DIRT_TYPES.length)];
+    const x = Math.random() * canvas.width;
+    const y = headerH + Math.random() * (canvas.height - headerH - 20);
+    const r = type.radius * (0.5 + Math.random());
     dirtObjects.push({
-      x: Math.random() * canvas.width,
-      y: headerH + Math.random() * (canvas.height - headerH - 20),
-      r: type.radius * (0.5 + Math.random()),
+      x, y, r,
       color: type.color,
       alpha: type.alpha,
       hp: type.hp,
       maxHp: type.hp,
       type: type.name,
+      // スプラット形状を生成時に固定
+      splatPoints: generateSplatPoints(x, y, r, 14 + Math.floor(Math.random() * 8)),
+      droplets: generateDroplets(x, y, r),
     });
   }
+}
+
+// ベジェ曲線でスプラット形状を描画
+function drawSplat(ctx, points) {
+  if (points.length < 3) return;
+  ctx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const p0 = points[i];
+    const p1 = points[(i + 1) % points.length];
+    const mx = (p0.x + p1.x) / 2;
+    const my = (p0.y + p1.y) / 2;
+    if (i === 0) ctx.moveTo(mx, my);
+    else ctx.quadraticCurveTo(p0.x, p0.y, mx, my);
+  }
+  ctx.closePath();
 }
 
 // 汚れをオフスクリーンCanvasに描画（マスク生成）
@@ -86,22 +136,19 @@ function renderDirtToMask() {
   dirtCtx.clearRect(0, 0, dirtCanvas.width, dirtCanvas.height);
   for (const d of dirtObjects) {
     if (d.hp <= 0) continue;
-    // HP残量で透明度変化
     const ratio = d.hp / d.maxHp;
+
+    // メインのスプラット
     dirtCtx.globalAlpha = d.alpha * ratio;
     dirtCtx.fillStyle = d.color;
-    dirtCtx.beginPath();
-    dirtCtx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    drawSplat(dirtCtx, d.splatPoints);
     dirtCtx.fill();
 
-    // ざらざら感テクスチャ
-    for (let t = 0; t < 8; t++) {
-      const tx = d.x + (Math.random() - 0.5) * d.r * 1.5;
-      const ty = d.y + (Math.random() - 0.5) * d.r * 1.5;
-      const tr = d.r * 0.3 * Math.random();
-      dirtCtx.globalAlpha = d.alpha * ratio * 0.5;
+    // 飛び散り小滴
+    for (const drop of d.droplets) {
+      dirtCtx.globalAlpha = d.alpha * ratio * (0.6 + Math.random() * 0.4);
       dirtCtx.beginPath();
-      dirtCtx.arc(tx, ty, tr, 0, Math.PI * 2);
+      dirtCtx.arc(drop.x, drop.y, drop.r, 0, Math.PI * 2);
       dirtCtx.fill();
     }
   }
