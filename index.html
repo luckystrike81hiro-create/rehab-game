@@ -60,28 +60,14 @@
       -webkit-tap-highlight-color: transparent;
     }
     .mode-btn:active { transform: scale(0.96); }
-    .btn-flat {
-      background: linear-gradient(135deg, #FF2D78, #FF6B00);
-      box-shadow: 0 8px 30px rgba(255,45,120,0.4);
-    }
-    .btn-3d {
-      background: linear-gradient(135deg, #00CFFF, #BF5FFF);
-      box-shadow: 0 8px 30px rgba(0,207,255,0.4);
-    }
-    .btn-ar {
-      background: linear-gradient(135deg, #39FF14, #00CFFF);
-      box-shadow: 0 8px 30px rgba(57,255,20,0.4);
-    }
+    .btn-flat { background: linear-gradient(135deg, #FF2D78, #FF6B00); box-shadow: 0 8px 30px rgba(255,45,120,0.4); }
+    .btn-3d   { background: linear-gradient(135deg, #00CFFF, #BF5FFF); box-shadow: 0 8px 30px rgba(0,207,255,0.4); }
+    .btn-ar   { background: linear-gradient(135deg, #39FF14, #00CFFF); box-shadow: 0 8px 30px rgba(57,255,20,0.4); }
     .btn-icon { font-size: 32px; }
     .btn-text { color: #fff; text-align: left; }
     .btn-title { font-size: 18px; font-weight: bold; display: block; }
     .btn-desc  { font-size: 12px; opacity: 0.8; display: block; margin-top: 2px; }
-    #version {
-      position: fixed;
-      bottom: 16px;
-      color: rgba(255,255,255,0.2);
-      font-size: 12px;
-    }
+    #version { position: fixed; bottom: 16px; color: rgba(255,255,255,0.2); font-size: 12px; }
   </style>
 </head>
 <body>
@@ -94,29 +80,18 @@
 
   <a class="mode-btn btn-flat" href="mode-flat.html" id="btn-flat">
     <span class="btn-icon">🧹</span>
-    <span class="btn-text">
-      <span class="btn-title">フラットモード</span>
-      <span class="btn-desc">画面の汚れを指で拭き取ろう</span>
-    </span>
+    <span class="btn-text"><span class="btn-title">フラットモード</span><span class="btn-desc">画面の汚れを指で拭き取ろう</span></span>
   </a>
-
   <a class="mode-btn btn-3d" href="mode-3d.html" id="btn-3d">
     <span class="btn-icon">🧊</span>
-    <span class="btn-text">
-      <span class="btn-title">3Dモード</span>
-      <span class="btn-desc">立体モデルに付いた汚れを掃除</span>
-    </span>
+    <span class="btn-text"><span class="btn-title">3Dモード</span><span class="btn-desc">立体モデルに付いた汚れを掃除</span></span>
   </a>
-
   <button class="mode-btn btn-ar" id="btn-ar" onclick="goAR()">
     <span class="btn-icon">📷</span>
-    <span class="btn-text">
-      <span class="btn-title">モンスター探索</span>
-      <span class="btn-desc">カメラで部屋を探索して汚れモンスターを発見！</span>
-    </span>
+    <span class="btn-text"><span class="btn-title">モンスター探索</span><span class="btn-desc">カメラで部屋を探索して汚れモンスターを発見！</span></span>
   </button>
 
-  <div id="version">v1.4 (2026-04-18)</div>
+  <div id="version">v1.5 (2026-04-18)</div>
 
   <script>
     let audioCtx = null;
