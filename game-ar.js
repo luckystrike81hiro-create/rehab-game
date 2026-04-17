@@ -48,44 +48,56 @@ let dragStart = null; // PC用マウスシミュレート
 // =============================================
 // 許可要求 → カメラ＋ジャイロ起動
 // =============================================
-document.getElementById('startBtn').addEventListener('touchstart', startAll, { passive: false });
+document.getElementById('startBtn').addEventListener('touchstart', e => {
+  e.preventDefault();
+  startAll();
+}, { passive: false });
 document.getElementById('startBtn').addEventListener('click', startAll);
 
-async function startAll() {
+function startAll() {
   document.getElementById('permScreen').style.display = 'none';
 
-  // カメラ起動
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }, audio: false
-    });
-    video.srcObject = stream;
-  } catch(e) {
-    console.warn('Camera unavailable:', e);
-  }
-
-  // ジャイロ許可（iOS 13+）
+  // ① ジャイロ許可を最初に（同期的にユーザージェスチャー内で呼ぶ）
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
-    try {
-      const res = await DeviceOrientationEvent.requestPermission();
+    DeviceOrientationEvent.requestPermission().then(res => {
       if (res === 'granted') setupGyro();
-    } catch(e) {
-      console.warn('Gyro permission denied:', e);
-    }
+      else showDebug('ジャイロ許可: 拒否されました');
+    }).catch(e => showDebug('ジャイロエラー: ' + e.message));
   } else {
+    // Android / non-iOS はそのまま使える
     setupGyro();
   }
+
+  // ② カメラは非同期で起動
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    .then(stream => { video.srcObject = stream; })
+    .catch(e => showDebug('カメラエラー: ' + e.message));
 }
 
 function setupGyro() {
   gyroAvailable = true;
+  showDebug('ジャイロ: OK');
   window.addEventListener('deviceorientation', e => {
     if (e.alpha !== null) {
-      heading = e.alpha;            // コンパス方向
-      tiltY   = (e.beta || 0);     // 上下チルト
+      heading = e.alpha;
+      tiltY   = (e.beta || 0);
     }
   }, true);
+}
+
+// デバッグ表示（一定時間で消える）
+function showDebug(msg) {
+  let el = document.getElementById('debugMsg');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'debugMsg';
+    el.style.cssText = 'position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:#0f0;padding:8px 16px;border-radius:12px;font-size:13px;z-index:50;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.remove(), 4000);
 }
 
 // PC用：マウスドラッグで方向をシミュレート
@@ -321,6 +333,15 @@ function loop() {
     ctx.font = '18px Arial';
     ctx.fillText('おつかれさまでした！', canvas.width/2, canvas.height/2 + 48);
   }
+
+  // デバッグ：ジャイロ値を画面に大きく表示
+  ctx.fillStyle = gyroAvailable ? 'rgba(0,255,0,0.8)' : 'rgba(255,100,0,0.8)';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(
+    gyroAvailable ? `▶ heading: ${Math.round(heading)}°` : '⚠ ジャイロ未接続',
+    canvas.width / 2, canvas.height - 160
+  );
 
   drawRadar();
   updateUI();
