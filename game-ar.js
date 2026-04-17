@@ -19,13 +19,14 @@ resize();
 // =============================================
 // モンスター定義（配置する方角 angle: 0-359）
 // =============================================
+// elevation: -40〜+40 の仰角（プラス=上、マイナス=下）
 const MONSTERS = [
-  { id: 1, angle: 0,   name: 'ピンクモン',   color: '#FF2D78', hp: 2, emoji: '👾', scale: 1.0 },
-  { id: 2, angle: 90,  name: 'オレンジモン', color: '#FF6B00', hp: 3, emoji: '🤢', scale: 1.2 },
-  { id: 3, angle: 180, name: 'シアンモン',   color: '#00CFFF', hp: 1, emoji: '👻', scale: 0.9 },
-  { id: 4, angle: 270, name: 'グリーンモン', color: '#39FF14', hp: 2, emoji: '🦠', scale: 1.1 },
-  { id: 5, angle: 45,  name: 'パープルモン', color: '#BF5FFF', hp: 3, emoji: '😈', scale: 1.3 },
-  { id: 6, angle: 225, name: 'イエローモン', color: '#FFE600', hp: 1, emoji: '🌟', scale: 0.8 },
+  { id: 1, angle: 0,   name: 'ピンクモン',   color: '#FF2D78', hp: 2, emoji: '👾', scale: 1.0, elevation:  10 },
+  { id: 2, angle: 90,  name: 'オレンジモン', color: '#FF6B00', hp: 3, emoji: '🤢', scale: 1.2, elevation: -20 },
+  { id: 3, angle: 180, name: 'シアンモン',   color: '#00CFFF', hp: 1, emoji: '👻', scale: 0.9, elevation:  30 },
+  { id: 4, angle: 270, name: 'グリーンモン', color: '#39FF14', hp: 2, emoji: '🦠', scale: 1.1, elevation: -10 },
+  { id: 5, angle: 45,  name: 'パープルモン', color: '#BF5FFF', hp: 3, emoji: '😈', scale: 1.3, elevation:  20 },
+  { id: 6, angle: 225, name: 'イエローモン', color: '#FFE600', hp: 1, emoji: '🌟', scale: 0.8, elevation: -35 },
 ];
 
 // 倒したモンスターIDを管理
@@ -48,13 +49,14 @@ let dragStart = null; // PC用マウスシミュレート
 // =============================================
 // 許可要求 → カメラ＋ジャイロ起動
 // =============================================
-document.getElementById('startBtn').addEventListener('click', function() {
-  // カメラ起動
+function startAR() {
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-    .then(stream => { video.srcObject = stream; })
+    .then(stream => {
+      video.srcObject = stream;
+      video.style.display = 'block';
+    })
     .catch(err => showDebug('カメラエラー: ' + err.message));
 
-  // ジャイロ：タイトル画面で許可済みならそのまま起動
   const granted = sessionStorage.getItem('gyroGranted');
   if (granted === '1') {
     setupGyro();
@@ -63,7 +65,14 @@ document.getElementById('startBtn').addEventListener('click', function() {
   }
 
   document.getElementById('permScreen').style.display = 'none';
-});
+}
+
+// タイトル画面から来た場合は自動起動
+if (sessionStorage.getItem('gyroGranted') !== null) {
+  startAR();
+} else {
+  document.getElementById('startBtn').addEventListener('click', startAR);
+}
 
 function setupGyro() {
   gyroAvailable = true;
@@ -123,8 +132,9 @@ function getScreenPos(monster) {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
   const x  = cx + (diff / VIEW_ANGLE) * cx * 0.8;
-  // 上下はチルトで少し動く
-  const y  = cy - (tiltY - 30) * 4;
+  // 縦位置 = モンスター固有の仰角 + チルトで全体がスクロール
+  const tiltOffset = (tiltY - 45) * 3;
+  const y = cy - monster.elevation * 5 - tiltOffset;
   return { x, y };
 }
 
