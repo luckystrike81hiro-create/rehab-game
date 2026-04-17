@@ -43,17 +43,24 @@ function getLiveMonsters() {
 // =============================================
 let heading = 0;
 let tiltY   = 0;
+let smoothHeading = 0; // スムージング後の値（描画に使う）
+let smoothTilt    = 0;
 let gyroAvailable = false;
 let dragStart = null;
-let invertH = false; // 左右反転フラグ
-let invertV = false; // 上下反転フラグ
+let invertV = true; // 上下反転フラグ（初期値=反転あり）
 
 document.getElementById('invertBtn').addEventListener('click', () => {
-  invertH = !invertH;
+  invertV = !invertV;
   const btn = document.getElementById('invertBtn');
-  btn.textContent = invertH ? '↔ 反転中' : '↔ 反転';
-  btn.style.background = invertH ? 'rgba(255,100,0,0.7)' : 'rgba(0,0,0,0.5)';
+  btn.textContent = invertV ? '↕ 反転中' : '↕ 上下反転';
+  btn.style.background = invertV ? 'rgba(255,100,0,0.7)' : 'rgba(0,0,0,0.5)';
 });
+
+// 角度のlerp（0-360の折り返しを考慮）
+function lerpAngle(a, b, t) {
+  let diff = ((b - a) + 540) % 360 - 180;
+  return (a + diff * t + 360) % 360;
+}
 
 // =============================================
 // 許可要求 → カメラ＋ジャイロ起動
@@ -94,10 +101,9 @@ function setupGyro() {
 
   window.addEventListener('deviceorientation', e => {
     if (e.alpha !== null) {
-      const raw = e.alpha;
-      heading = invertH ? (360 - raw) % 360 : raw;
+      heading = e.alpha; // 左右はそのまま
       tiltY   = invertV ? (e.beta || 0) : -(e.beta || 0);
-      if (dbg) dbg.textContent = `raw:${Math.round(raw)}° h:${Math.round(heading)}°`;
+      if (dbg) dbg.textContent = `h:${Math.round(smoothHeading)}° t:${Math.round(smoothTilt)}°`;
     }
   }, true);
 }
@@ -137,15 +143,15 @@ function angleDiff(a, b) {
 }
 
 function getScreenPos(monster) {
-  const diff = angleDiff(monster.angle, heading);
+  const diff = angleDiff(monster.angle, smoothHeading);
   if (Math.abs(diff) > VIEW_ANGLE) return null;
 
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
   const x  = cx + (diff / VIEW_ANGLE) * cx * 0.8;
-  // 縦位置 = モンスター固有の仰角 + チルトで全体がスクロール
-  const tiltOffset = (tiltY + 45) * 5;
-  const y = cy - monster.elevation * 9 + tiltOffset;
+  // 縦位置：モンスター固有の仰角 + チルトで全体スクロール（感度を下げた）
+  const tiltOffset = (smoothTilt - 60) * 2.5;
+  const y = cy - monster.elevation * 8 + tiltOffset;
   return { x, y };
 }
 
@@ -311,6 +317,10 @@ function updateUI() {
 function loop() {
   requestAnimationFrame(loop);
   time++;
+
+  // スムージング更新（ここで毎フレーム適用）
+  smoothHeading = lerpAngle(smoothHeading, heading, 0.08);
+  smoothTilt    = smoothTilt + (tiltY - smoothTilt) * 0.08;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
