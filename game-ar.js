@@ -149,8 +149,8 @@ function getScreenPos(monster) {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
   const x  = cx + (diff / VIEW_ANGLE) * cx * 0.8;
-  // 縦位置：モンスター固有の仰角 + チルトで全体スクロール（感度を下げた）
-  const tiltOffset = (smoothTilt - 60) * 2.5;
+  // 縦位置：モンスター固有の仰角 + チルトで全体スクロール
+  const tiltOffset = (smoothTilt - 60) * 5;
   const y = cy - monster.elevation * 8 + tiltOffset;
   return { x, y };
 }
