@@ -28,10 +28,16 @@ const MONSTERS = [
   { id: 6, name: 'イエローモン', color: '#FFE600', hp: 1, emoji: '🌟', scale: 0.8, angle: 0,   elevation: 0 },
 ];
 
-// ランダム配置（ページロードごとに再配置・最低60°離す）
+// ランダム配置（ページロードごとに再配置・出現数もランダム3〜6匹）
 (function randomizePositions() {
+  const count = Math.floor(Math.random() * 4) + 3; // 3〜6匹
+  const activeIds = new Set(
+    [...MONSTERS].sort(() => Math.random() - 0.5).slice(0, count).map(m => m.id)
+  );
   const usedAngles = [];
   MONSTERS.forEach(m => {
+    m.active = activeIds.has(m.id);
+    if (!m.active) return;
     let angle;
     let tries = 0;
     do {
@@ -40,7 +46,7 @@ const MONSTERS = [
     } while (tries < 30 && usedAngles.some(a => Math.abs(((angle - a + 540) % 360) - 180) < 60));
     usedAngles.push(angle);
     m.angle     = angle;
-    m.elevation = Math.floor(Math.random() * 61) - 30; // -30〜+30
+    m.elevation = Math.floor(Math.random() * 161) - 80; // -80〜+80
   });
 })();
 
@@ -54,7 +60,7 @@ const defeated = new Set(
 );
 
 function getLiveMonsters() {
-  return MONSTERS.filter(m => !defeated.has(m.id));
+  return MONSTERS.filter(m => m.active && !defeated.has(m.id));
 }
 
 // =============================================
@@ -161,7 +167,7 @@ function getScreenPos(monster) {
   const cy = canvas.height / 2;
   const x  = cx - (diff / VIEW_ANGLE) * cx * 0.8; // 左右方向を補正
   // 縦位置：モンスター固有の仰角 + チルトで全体スクロール
-  const tiltOffset = (smoothTilt - 60) * 7;
+  const tiltOffset = (smoothTilt - 60) * 9;
   const y = cy - monster.elevation * 8 + tiltOffset;
   return { x, y };
 }
