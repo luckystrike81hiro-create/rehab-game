@@ -50,6 +50,7 @@ let dragStart = null; // PC用マウスシミュレート
 // 許可要求 → カメラ＋ジャイロ起動
 // =============================================
 function startAR() {
+  // getUserMediaはユーザージェスチャー内で呼ぶ必要がある
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
     .then(stream => {
       video.srcObject = stream;
@@ -61,31 +62,26 @@ function startAR() {
   if (granted === '1') {
     setupGyro();
   } else {
-    showDebug('ジャイロ未許可 - タイトルから入ってください');
+    showDebug('タイトル画面から入ってください');
   }
 
   document.getElementById('permScreen').style.display = 'none';
 }
 
-// タイトル画面から来た場合は自動起動
-if (sessionStorage.getItem('gyroGranted') !== null) {
-  startAR();
-} else {
-  document.getElementById('startBtn').addEventListener('click', startAR);
-}
+// 常にボタンタップで起動（getUserMediaのジェスチャー要件のため）
+document.getElementById('startBtn').addEventListener('click', startAR);
 
 function setupGyro() {
   gyroAvailable = true;
-  showDebug('ジャイロ: OK');
-  // HTMLデバッグ表示を出す
   const dbg = document.getElementById('gyroDebug');
   if (dbg) dbg.style.display = 'block';
 
   window.addEventListener('deviceorientation', e => {
     if (e.alpha !== null) {
-      heading = e.alpha;
-      tiltY   = (e.beta || 0);
-      // HTMLに直接書き込む（キャンバス不要）
+      // iOSはalphaが反時計回りなので反転
+      heading = (360 - e.alpha) % 360;
+      // betaは上向きで減る → 反転して自然な操作感に
+      tiltY   = -(e.beta || 0);
       if (dbg) dbg.textContent = `heading: ${Math.round(heading)}°`;
     }
   }, true);
@@ -133,8 +129,8 @@ function getScreenPos(monster) {
   const cy = canvas.height / 2;
   const x  = cx + (diff / VIEW_ANGLE) * cx * 0.8;
   // 縦位置 = モンスター固有の仰角 + チルトで全体がスクロール
-  const tiltOffset = (tiltY - 45) * 3;
-  const y = cy - monster.elevation * 5 - tiltOffset;
+  const tiltOffset = (tiltY + 45) * 5;
+  const y = cy - monster.elevation * 9 + tiltOffset;
   return { x, y };
 }
 
