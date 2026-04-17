@@ -63,52 +63,61 @@ if (_btn) {
   }, { passive: false });
 }
 
+// resume済みのAudioContextを返すヘルパー
+function getReadyAudio() {
+  const ac = getAudio();
+  return ac.resume().then(() => ac);
+}
+
 // 拭き取り音：ピュッと下がるトーン
 function playWipeSound() {
   const now = Date.now();
   if (now - lastWipeSound < 150) return;
   lastWipeSound = now;
-  const ac = getAudio();
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(800, ac.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(400, ac.currentTime + 0.1);
-  gain.gain.setValueAtTime(0.5, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
-  osc.connect(gain); gain.connect(ac.destination);
-  osc.start(); osc.stop(ac.currentTime + 0.12);
+  getReadyAudio().then(ac => {
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(400, ac.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.5, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.12);
+  });
 }
 
 // ポップ音：ポンと弾ける
 function playPopSound(freq = 600) {
-  const ac = getAudio();
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(freq, ac.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(freq * 0.3, ac.currentTime + 0.18);
-  gain.gain.setValueAtTime(0.8, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.2);
-  osc.connect(gain); gain.connect(ac.destination);
-  osc.start(); osc.stop(ac.currentTime + 0.2);
+  getReadyAudio().then(ac => {
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.3, ac.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.8, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.2);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.2);
+  });
 }
 
 // フィニッシュ音：ファンファーレ
 function playFinishSound() {
-  const ac = getAudio();
-  const notes = [523, 659, 784, 1047, 1319];
-  notes.forEach((freq, i) => {
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    const t = ac.currentTime + i * 0.1;
-    osc.type = 'triangle';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.7, t + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-    osc.connect(gain); gain.connect(ac.destination);
-    osc.start(t); osc.stop(t + 0.5);
+  getReadyAudio().then(ac => {
+    const notes = [523, 659, 784, 1047, 1319];
+    notes.forEach((freq, i) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      const t = ac.currentTime + i * 0.1;
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.7, t + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.start(t); osc.stop(t + 0.5);
+    });
   });
 }
 
