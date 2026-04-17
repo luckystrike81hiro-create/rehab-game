@@ -48,33 +48,30 @@ let dragStart = null; // PC用マウスシミュレート
 // =============================================
 // 許可要求 → カメラ＋ジャイロ起動
 // =============================================
-document.getElementById('startBtn').addEventListener('touchstart', e => {
-  e.preventDefault();
-
-  // requestPermission はこのハンドラに直接書く（関数経由だとiOSに弾かれる）
+document.getElementById('startBtn').addEventListener('click', function() {
+  // requestPermission を最初の1行目に（iOSの厳格なジェスチャー判定対策）
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
       .then(res => {
         if (res === 'granted') {
           setupGyro();
-          showDebug('ジャイロ: OK');
+          showDebug('ジャイロ: OK ✅');
         } else {
           showDebug('ジャイロ: 許可が拒否されました');
         }
       })
       .catch(err => showDebug('ジャイロエラー: ' + err.message));
   } else {
-    setupGyro(); // Android・非iOSはそのまま
+    setupGyro();
   }
 
-  // カメラ起動
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
     .then(stream => { video.srcObject = stream; })
     .catch(err => showDebug('カメラエラー: ' + err.message));
 
   document.getElementById('permScreen').style.display = 'none';
-}, { passive: false });
+});
 
 function setupGyro() {
   gyroAvailable = true;
