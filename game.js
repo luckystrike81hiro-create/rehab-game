@@ -35,33 +35,6 @@ function unlockAudio() {
   });
 }
 
-// テスト用ボタン（game.jsはbodyの末尾なのでDOMはすでに存在する）
-const _btn = document.getElementById('audioBtn');
-if (_btn) {
-  _btn.addEventListener('touchstart', e => {
-    e.stopPropagation();
-    _btn.style.background = '#ff6600';
-    _btn.textContent = '⏳ 起動中...';
-    const ac = getAudio();
-    ac.resume().then(() => {
-      console.log('AudioContext state:', ac.state);
-      _btn.style.background = '#00aa44';
-      _btn.textContent = '✅ ' + ac.state;
-      const osc = ac.createOscillator();
-      const gain = ac.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.9, ac.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 1.0);
-      osc.connect(gain); gain.connect(ac.destination);
-      osc.start(); osc.stop(ac.currentTime + 1.0);
-    }).catch(err => {
-      console.error('resume failed:', err);
-      _btn.style.background = '#aa0000';
-      _btn.textContent = '❌ ' + err.message;
-    });
-  }, { passive: false });
-}
 
 // resume済みのAudioContextを返すヘルパー
 function getReadyAudio() {
