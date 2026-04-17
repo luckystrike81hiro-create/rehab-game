@@ -168,9 +168,9 @@ function countDirtPixels() {
 // 拭き取り処理
 // =============================================
 
-// 指間隔からワイプ半径を計算（4本指 → 広い範囲）
+// 指間隔からワイプ半径を計算（4本指 → 指先サイズ基準）
 function calcWipeRadius(touches) {
-  if (touches.length <= 1) return 40;
+  if (touches.length <= 1) return 14;
 
   let maxDist = 0;
   for (let i = 0; i < touches.length; i++) {
@@ -181,8 +181,8 @@ function calcWipeRadius(touches) {
       if (d > maxDist) maxDist = d;
     }
   }
-  // 指間隔 0~200px → 半径 40~120
-  return 40 + Math.min(maxDist * 0.4, 80);
+  // 指間隔が広いほど少しだけ大きくなる（14〜22px）
+  return 14 + Math.min(maxDist * 0.04, 8);
 }
 
 // 汚れを拭き取る（マスクを消去 + HPを削る）
@@ -191,12 +191,12 @@ function wipe(touches) {
 
   const wipeRadius = calcWipeRadius(touches);
 
-  // オフスクリーンCanvasの汚れを消去
+  // オフスクリーンCanvasの汚れを消去（中心のみ確実に消す・端はほぼ残す）
   dirtCtx.globalCompositeOperation = 'destination-out';
   for (const t of touches) {
     const grad = dirtCtx.createRadialGradient(t.x, t.y, 0, t.x, t.y, wipeRadius);
     grad.addColorStop(0, 'rgba(0,0,0,1)');
-    grad.addColorStop(0.7, 'rgba(0,0,0,0.8)');
+    grad.addColorStop(0.5, 'rgba(0,0,0,0.9)');
     grad.addColorStop(1, 'rgba(0,0,0,0)');
     dirtCtx.fillStyle = grad;
     dirtCtx.beginPath();
