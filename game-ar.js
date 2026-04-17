@@ -41,22 +41,38 @@ function getLiveMonsters() {
 // =============================================
 // センサー・カメラ状態
 // =============================================
-let heading = 0;   // 現在のコンパス方向（0-360）
-let tiltY   = 0;   // 上下チルト
+let heading = 0;
+let tiltY   = 0;
 let gyroAvailable = false;
-let dragStart = null; // PC用マウスシミュレート
+let dragStart = null;
+let invertH = false; // 左右反転フラグ
+let invertV = false; // 上下反転フラグ
+
+document.getElementById('invertBtn').addEventListener('click', () => {
+  invertH = !invertH;
+  const btn = document.getElementById('invertBtn');
+  btn.textContent = invertH ? '↔ 反転中' : '↔ 反転';
+  btn.style.background = invertH ? 'rgba(255,100,0,0.7)' : 'rgba(0,0,0,0.5)';
+});
 
 // =============================================
 // 許可要求 → カメラ＋ジャイロ起動
 // =============================================
 function startAR() {
   // getUserMediaはユーザージェスチャー内で呼ぶ必要がある
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-    .then(stream => {
-      video.srcObject = stream;
-      video.style.display = 'block';
-    })
-    .catch(err => showDebug('カメラエラー: ' + err.message));
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showDebug('❌ このブラウザはカメラ非対応');
+  } else {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .then(stream => {
+        video.srcObject = stream;
+        video.play();
+        showDebug('📷 カメラ起動 OK');
+      })
+      .catch(err => {
+        showDebug('❌ カメラ: ' + err.name + ' - ' + err.message);
+      });
+  }
 
   const granted = sessionStorage.getItem('gyroGranted');
   if (granted === '1') {
@@ -78,11 +94,10 @@ function setupGyro() {
 
   window.addEventListener('deviceorientation', e => {
     if (e.alpha !== null) {
-      // iOSはalphaが反時計回りなので反転
-      heading = (360 - e.alpha) % 360;
-      // betaは上向きで減る → 反転して自然な操作感に
-      tiltY   = -(e.beta || 0);
-      if (dbg) dbg.textContent = `heading: ${Math.round(heading)}°`;
+      const raw = e.alpha;
+      heading = invertH ? (360 - raw) % 360 : raw;
+      tiltY   = invertV ? (e.beta || 0) : -(e.beta || 0);
+      if (dbg) dbg.textContent = `raw:${Math.round(raw)}° h:${Math.round(heading)}°`;
     }
   }, true);
 }
