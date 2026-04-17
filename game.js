@@ -43,6 +43,52 @@ const DIRT_TYPES = [
 
 let dirtObjects = [];
 
+// --- パーティクル ---
+const particles = [];
+const MAX_PARTICLES = 60;
+
+function emitParticles(x, y, color) {
+  const count = 5 + Math.floor(Math.random() * 5);
+  for (let i = 0; i < count; i++) {
+    if (particles.length >= MAX_PARTICLES) break;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1.5 + Math.random() * 3.5;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r: 2 + Math.random() * 4,
+      color,
+      alpha: 1,
+      life: 1,
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.88;
+    p.vy *= 0.88;
+    p.life -= 0.045;
+    p.alpha = Math.max(0, p.life);
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 // =============================================
 // 汚れ初期化
 // =============================================
@@ -250,6 +296,7 @@ function wipe(touches) {
       if (Math.sqrt(dx * dx + dy * dy) < d.r * 0.8) {
         d.hp = Math.max(0, d.hp - 0.12);
         hpChanged = true;
+        emitParticles(t.x, t.y, d.baseColor);
       }
     }
   }
@@ -387,6 +434,8 @@ function loop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
   if (colorCanvas) ctx.drawImage(colorCanvas, 0, 0);
+  updateParticles();
+  drawParticles();
   drawFingerIndicators();
   updateUI();
   requestAnimationFrame(loop);
