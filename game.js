@@ -32,39 +32,35 @@ function unlockAudio() {
   ac.resume().then(() => { audioUnlocked = true; });
 }
 
-// 拭き取り音：短いシュッ
+// 拭き取り音：ピュッと下がるトーン
 function playWipeSound() {
   const now = Date.now();
-  if (now - lastWipeSound < 120) return; // 連打制限
+  if (now - lastWipeSound < 150) return;
   lastWipeSound = now;
-  const ac = getAudio();
-  const buf = ac.createBuffer(1, ac.sampleRate * 0.08, ac.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-  const src = ac.createBufferSource();
-  src.buffer = buf;
-  const filter = ac.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 3000;
-  filter.Q.value = 0.8;
-  const gain = ac.createGain();
-  gain.gain.value = 0.6;
-  src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
-  src.start();
-}
-
-// ポップ音：汚れに当たった瞬間
-function playPopSound(freq = 520) {
   const ac = getAudio();
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(freq, ac.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(freq * 0.4, ac.currentTime + 0.12);
-  gain.gain.setValueAtTime(0.7, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.15);
+  osc.frequency.setValueAtTime(800, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(400, ac.currentTime + 0.1);
+  gain.gain.setValueAtTime(0.5, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
   osc.connect(gain); gain.connect(ac.destination);
-  osc.start(); osc.stop(ac.currentTime + 0.15);
+  osc.start(); osc.stop(ac.currentTime + 0.12);
+}
+
+// ポップ音：ポンと弾ける
+function playPopSound(freq = 600) {
+  const ac = getAudio();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.3, ac.currentTime + 0.18);
+  gain.gain.setValueAtTime(0.8, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.2);
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.start(); osc.stop(ac.currentTime + 0.2);
 }
 
 // フィニッシュ音：ファンファーレ
