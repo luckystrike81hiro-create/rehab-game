@@ -35,23 +35,34 @@ function unlockAudio() {
   });
 }
 
-// テスト用：ボタンから直接呼べる
-function testAudio() {
-  const ac = getAudio();
-  ac.resume().then(() => {
-    console.log('testAudio - state:', ac.state);
-    const btn = document.getElementById('audioBtn');
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.8, ac.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
-    osc.connect(gain); gain.connect(ac.destination);
-    osc.start(); osc.stop(ac.currentTime + 0.5);
-    if (btn) { btn.style.background = '#00aa44'; setTimeout(() => btn.style.background = '#333', 500); }
-  });
-}
+// テスト用ボタンの設定
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('audioBtn');
+  if (!btn) return;
+  btn.addEventListener('touchstart', e => {
+    e.stopPropagation();
+    btn.style.background = '#ff6600';
+    btn.textContent = '⏳ 起動中...';
+    const ac = getAudio();
+    ac.resume().then(() => {
+      console.log('AudioContext state after resume:', ac.state);
+      btn.style.background = '#00aa44';
+      btn.textContent = '✅ state:' + ac.state;
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.9, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 1.0);
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.start(); osc.stop(ac.currentTime + 1.0);
+    }).catch(err => {
+      console.error('resume failed:', err);
+      btn.style.background = '#aa0000';
+      btn.textContent = '❌ ' + err.message;
+    });
+  }, { passive: false });
+});
 
 // 拭き取り音：ピュッと下がるトーン
 function playWipeSound() {
