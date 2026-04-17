@@ -50,30 +50,31 @@ let dragStart = null; // PC用マウスシミュレート
 // =============================================
 document.getElementById('startBtn').addEventListener('touchstart', e => {
   e.preventDefault();
-  startAll();
-}, { passive: false });
-document.getElementById('startBtn').addEventListener('click', startAll);
 
-function startAll() {
-  document.getElementById('permScreen').style.display = 'none';
-
-  // ① ジャイロ許可を最初に（同期的にユーザージェスチャー内で呼ぶ）
+  // requestPermission はこのハンドラに直接書く（関数経由だとiOSに弾かれる）
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission().then(res => {
-      if (res === 'granted') setupGyro();
-      else showDebug('ジャイロ許可: 拒否されました');
-    }).catch(e => showDebug('ジャイロエラー: ' + e.message));
+    DeviceOrientationEvent.requestPermission()
+      .then(res => {
+        if (res === 'granted') {
+          setupGyro();
+          showDebug('ジャイロ: OK');
+        } else {
+          showDebug('ジャイロ: 許可が拒否されました');
+        }
+      })
+      .catch(err => showDebug('ジャイロエラー: ' + err.message));
   } else {
-    // Android / non-iOS はそのまま使える
-    setupGyro();
+    setupGyro(); // Android・非iOSはそのまま
   }
 
-  // ② カメラは非同期で起動
+  // カメラ起動
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
     .then(stream => { video.srcObject = stream; })
-    .catch(e => showDebug('カメラエラー: ' + e.message));
-}
+    .catch(err => showDebug('カメラエラー: ' + err.message));
+
+  document.getElementById('permScreen').style.display = 'none';
+}, { passive: false });
 
 function setupGyro() {
   gyroAvailable = true;
