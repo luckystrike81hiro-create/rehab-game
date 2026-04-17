@@ -16,11 +16,132 @@ renderer.domElement.style.top = '0';
 renderer.domElement.style.left = '0';
 document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
+// --- パーティクル用2Dオーバーレイ ---
+const overlayCanvas = document.createElement('canvas');
+overlayCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:5;';
+overlayCanvas.width  = window.innerWidth;
+overlayCanvas.height = window.innerHeight;
+document.body.insertBefore(overlayCanvas, document.body.children[1]);
+const oc = overlayCanvas.getContext('2d');
+
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  overlayCanvas.width  = window.innerWidth;
+  overlayCanvas.height = window.innerHeight;
 });
+
+// =============================================
+// 効果音（game.jsと同じ実装）
+// =============================================
+let audioCtx = null;
+let lastWipeSound = 0;
+
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function unlockAudio() {
+  const ac = getAudio();
+  const buf = ac.createBuffer(1, 1, 22050);
+  const src = ac.createBufferSource();
+  src.buffer = buf; src.connect(ac.destination); src.start(0);
+  ac.resume();
+}
+function playTone(freq, type, duration, gain_val, freqEnd) {
+  const ac = getAudio();
+  ac.resume();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, ac.currentTime + duration);
+  gain.gain.setValueAtTime(gain_val, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.start(); osc.stop(ac.currentTime + duration);
+}
+function playWipeSound() {
+  const now = Date.now();
+  if (now - lastWipeSound < 150) return;
+  lastWipeSound = now;
+  playTone(800, 'sine', 0.12, 0.5, 400);
+}
+function playPopSound(freq = 600) {
+  playTone(freq, 'triangle', 0.2, 0.8, freq * 0.3);
+}
+function playFinishSound() {
+  const ac = getAudio(); ac.resume();
+  [523,659,784,1047,1319].forEach((freq, i) => {
+    const osc = ac.createOscillator(), gain = ac.createGain();
+    const t = ac.currentTime + i * 0.1;
+    osc.type = 'triangle'; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.7, t + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(t); osc.stop(t + 0.5);
+  });
+}
+
+// =============================================
+// パーティクル
+// =============================================
+const particles = [];
+const MAX_PARTICLES = 300;
+const FINISH_COLORS = ['#FF2D78','#FF6B00','#00CFFF','#39FF14','#BF5FFF','#FFE600','#ffffff'];
+
+function emitParticles(x, y, color) {
+  const count = 12 + Math.floor(Math.random() * 10);
+  for (let i = 0; i < count; i++) {
+    if (particles.length >= MAX_PARTICLES) break;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 3.5 + Math.random() * 7;
+    particles.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+      r: 4 + Math.random()*9, color, alpha: 1, life: 1 });
+  }
+}
+function launchFinishFireworks() {
+  let count = 0;
+  function burst() {
+    if (count++ >= 18) return;
+    const x = 60 + Math.random() * (overlayCanvas.width - 120);
+    const y = 80 + Math.random() * (overlayCanvas.height * 0.7);
+    const col = FINISH_COLORS[Math.floor(Math.random() * FINISH_COLORS.length)];
+    for (let i = 0; i < 40; i++) {
+      if (particles.length >= MAX_PARTICLES * 2) break;
+      const angle = (i/40)*Math.PI*2 + Math.random()*0.3;
+      const speed = 4 + Math.random()*10;
+      particles.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+        r: 5 + Math.random()*10, color: col, alpha: 1, life: 1 });
+    }
+    playPopSound(300 + Math.random()*600);
+    setTimeout(burst, 180 + Math.random()*200);
+  }
+  burst();
+}
+function updateParticles() {
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.88; p.vy *= 0.88;
+    p.life -= 0.028; p.alpha = Math.max(0, p.life);
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+function drawParticles() {
+  oc.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  for (const p of particles) {
+    oc.globalAlpha = p.alpha;
+    oc.fillStyle = p.color;
+    oc.beginPath();
+    oc.arc(p.x, p.y, p.r * p.life, 0, Math.PI*2);
+    oc.fill();
+  }
+  oc.globalAlpha = 1;
+}
 
 // --- ライト ---
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -202,17 +323,18 @@ function wipeAtScreen(screenX, screenY) {
   wipeCtx.arc(px, py, r, 0, Math.PI*2);
   wipeCtx.fill();
 
-  // HP削る
-  let changed = false;
+  // HP削る＋パーティクル＋音
   for (const d of dirtObjects) {
     if (d.hp <= 0) continue;
     const dx = d.x - px, dy = d.y - py;
     if (Math.sqrt(dx*dx+dy*dy) < d.r * 0.9) {
       d.hp = Math.max(0, d.hp - 0.15);
-      changed = true;
+      emitParticles(screenX, screenY, d.baseColor);
+      playPopSound();
     }
   }
 
+  playWipeSound();
   rebuildDirtCanvas();
   rebuildFinalTexture();
   updateCleanPercent();
@@ -233,6 +355,7 @@ function updateCleanPercent() {
 // --- タッチイベント ---
 renderer.domElement.addEventListener('touchstart', e => {
   e.preventDefault();
+  unlockAudio();
   state.fingers = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
 }, { passive: false });
 
@@ -290,6 +413,8 @@ function updateUI() {
     el.textContent = `✨ きれいになった！\n${m}:${s}`;
     el.style.opacity = '1';
     setTimeout(() => el.style.opacity = '0', 3000);
+    playFinishSound();
+    launchFinishFireworks();
   }
 }
 
@@ -301,6 +426,8 @@ function loop() {
   if (dpadState.left)  sphere.rotation.y -= ROT_SPEED;
   if (dpadState.right) sphere.rotation.y += ROT_SPEED;
   renderer.render(scene, camera);
+  updateParticles();
+  drawParticles();
   updateUI();
 }
 
