@@ -10,12 +10,26 @@ const ctx = canvas.getContext('2d');
 // 効果音（Web Audio API）
 // =============================================
 let audioCtx = null;
+let audioUnlocked = false;
 let lastWipeSound = 0;
 
 function getAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
+}
+
+// iOS Safari用：最初のタッチでサイレントバッファを鳴らしてAudioをアンロック
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  const ac = getAudio();
+  const buf = ac.createBuffer(1, 1, 22050);
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  src.connect(ac.destination);
+  src.start(0);
+  ac.resume().then(() => { audioUnlocked = true; });
 }
 
 // 拭き取り音：短いシュッ
@@ -443,7 +457,7 @@ function getTouches(e) {
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  getAudio(); // iOSのためにタッチ時にAudioContext初期化
+  unlockAudio();
   state.fingers = getTouches(e);
 }, { passive: false });
 
