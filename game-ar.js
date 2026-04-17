@@ -47,12 +47,12 @@ let smoothHeading = 0; // スムージング後の値（描画に使う）
 let smoothTilt    = 0;
 let gyroAvailable = false;
 let dragStart = null;
-let invertV = true; // 上下反転フラグ（初期値=反転あり）
+let invertV = true; // 方向反転フラグ（初期値=反転あり）
 
 document.getElementById('invertBtn').addEventListener('click', () => {
   invertV = !invertV;
   const btn = document.getElementById('invertBtn');
-  btn.textContent = invertV ? '↕ 反転中' : '↕ 上下反転';
+  btn.textContent = invertV ? '⇔↕ 反転中' : '⇔↕ 方向反転';
   btn.style.background = invertV ? 'rgba(255,100,0,0.7)' : 'rgba(0,0,0,0.5)';
 });
 
@@ -148,7 +148,9 @@ function getScreenPos(monster) {
 
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
-  const x  = cx + (diff / VIEW_ANGLE) * cx * 0.8;
+  // invertV=true のとき左右も反転（上下と同時にデバイス補正）
+  const xSign = invertV ? -1 : 1;
+  const x  = cx + xSign * (diff / VIEW_ANGLE) * cx * 0.8;
   // 縦位置：モンスター固有の仰角 + チルトで全体スクロール
   const tiltOffset = (smoothTilt - 60) * 5;
   const y = cy - monster.elevation * 8 + tiltOffset;
