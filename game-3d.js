@@ -415,6 +415,12 @@ function updateUI() {
     setTimeout(() => el.style.opacity = '0', 3000);
     playFinishSound();
     launchFinishFireworks();
+    // ARモードから来た場合は3秒後にARモードへ戻る
+    if (new URLSearchParams(window.location.search).get('from') === 'ar') {
+      setTimeout(() => {
+        window.location.href = 'mode-ar.html?cleared=1';
+      }, 3500);
+    }
   }
 }
 
