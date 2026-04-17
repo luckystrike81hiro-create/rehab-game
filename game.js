@@ -29,7 +29,28 @@ function unlockAudio() {
   src.buffer = buf;
   src.connect(ac.destination);
   src.start(0);
-  ac.resume().then(() => { audioUnlocked = true; });
+  ac.resume().then(() => {
+    audioUnlocked = true;
+    console.log('AudioContext state:', ac.state);
+  });
+}
+
+// テスト用：ボタンから直接呼べる
+function testAudio() {
+  const ac = getAudio();
+  ac.resume().then(() => {
+    console.log('testAudio - state:', ac.state);
+    const btn = document.getElementById('audioBtn');
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.8, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.5);
+    if (btn) { btn.style.background = '#00aa44'; setTimeout(() => btn.style.background = '#333', 500); }
+  });
 }
 
 // 拭き取り音：ピュッと下がるトーン
