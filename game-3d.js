@@ -6,7 +6,7 @@
 // --- Three.js 基本セットアップ ---
 const scene    = new THREE.Scene();
 const camera   = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 0, 6);
+camera.position.set(0, 0, 8);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
