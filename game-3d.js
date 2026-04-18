@@ -257,18 +257,33 @@ function hpToColor(baseColor, ratio) {
 
 function generateDirt() {
   dirtObjects = [];
-  const count = 30 + Math.floor(Math.random() * 20);
+  const count = 40 + Math.floor(Math.random() * 20); // 40〜60個
   for (let i = 0; i < count; i++) {
     const color = DIRT_COLORS[Math.floor(Math.random() * DIRT_COLORS.length)];
-    const x = 60 + Math.random() * (TEX_W - 120);
-    const y = 60 + Math.random() * (TEX_H - 120);
-    const r = 40 + Math.random() * 60;
-    const maxHp = 1 + Math.floor(Math.random() * 3);
+    // サイズ分布：小60%・中30%・大10%
+    const roll = Math.random();
+    let r, maxHp, splatPts;
+    if (roll < 0.6) {
+      r = 8 + Math.random() * 14;       // 小: 8〜22px
+      maxHp = 1;
+      splatPts = 8 + Math.floor(Math.random() * 4);
+    } else if (roll < 0.9) {
+      r = 28 + Math.random() * 18;      // 中: 28〜46px
+      maxHp = 1 + Math.floor(Math.random() * 2);
+      splatPts = 12 + Math.floor(Math.random() * 6);
+    } else {
+      r = 50 + Math.random() * 28;      // 大: 50〜78px
+      maxHp = 2 + Math.floor(Math.random() * 2);
+      splatPts = 16 + Math.floor(Math.random() * 8);
+    }
+    const margin = r + 10;
+    const x = margin + Math.random() * (TEX_W - margin * 2);
+    const y = margin + Math.random() * (TEX_H - margin * 2);
     dirtObjects.push({
       x, y, r, baseColor: color,
       hp: maxHp, maxHp,
-      splatPoints: generateSplatPoints(x, y, r, 16 + Math.floor(Math.random() * 8)),
-      droplets: Array.from({length: 4 + Math.floor(Math.random()*5)}, () => ({
+      splatPoints: generateSplatPoints(x, y, r, splatPts),
+      droplets: Array.from({length: 2 + Math.floor(Math.random() * (r > 30 ? 5 : 3))}, () => ({
         x: x + (Math.random()-0.5)*r*2.5,
         y: y + (Math.random()-0.5)*r*2.5,
         r: r * (0.08 + Math.random()*0.2),
@@ -332,7 +347,7 @@ const state = {
 // --- レイキャスト＋拭き取り ---
 const raycaster = new THREE.Raycaster();
 const mouse     = new THREE.Vector2();
-const WIPE_UV_R = 0.04; // UV空間での消去半径
+const WIPE_UV_R = 0.025; // UV空間での消去半径
 
 function wipeAtScreen(screenX, screenY) {
   mouse.x = (screenX / window.innerWidth) * 2 - 1;
