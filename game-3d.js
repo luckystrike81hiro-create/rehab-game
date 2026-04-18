@@ -141,6 +141,174 @@ function drawParticles() {
     oc.fill();
   }
   oc.globalAlpha = 1;
+  drawOjama();
+}
+
+// =============================================
+// お邪魔キャラクター
+// =============================================
+const OJAMA_ATTACK_INTERVAL = 5000; // ms（攻撃間隔）
+const OJAMA_FLEE_DURATION   = 3000; // ms（逃走時間）
+
+const ojama = {
+  x: window.innerWidth  * 0.65,
+  y: window.innerHeight * 0.5,
+  vx: 1.8,
+  vy: 1.3,
+  size: 36,
+  state: 'patrol', // 'patrol' | 'fleeing'
+  attackTimer: OJAMA_ATTACK_INTERVAL,
+  fleeTimer: 0,
+};
+
+function playOjamaAttackSound() {
+  playTone(180, 'sawtooth', 0.35, 0.5, 90);
+}
+function playOjamaHitSound() {
+  playTone(900, 'square', 0.15, 0.4, 1200);
+}
+
+function ojamaAttack() {
+  const nx = (ojama.x / window.innerWidth)  * 2 - 1;
+  const ny = -(ojama.y / window.innerHeight) * 2 + 1;
+  mouse.x = nx; mouse.y = ny;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObject(sphere);
+  if (hits.length === 0) return;
+
+  const uv = hits[0].uv;
+  const px = uv.x * TEX_W;
+  const py = (1 - uv.y) * TEX_H;
+  const r  = 18 + Math.random() * 10;
+
+  // wipeCanvasのその範囲を消去（拭き取りを取り消す）
+  wipeCtx.globalCompositeOperation = 'destination-out';
+  wipeCtx.fillStyle = 'rgba(255,255,255,1)';
+  wipeCtx.beginPath();
+  wipeCtx.arc(px, py, r * 1.5, 0, Math.PI * 2);
+  wipeCtx.fill();
+  wipeCtx.globalCompositeOperation = 'source-over';
+
+  // 新しい汚れを追加
+  const color = DIRT_COLORS[Math.floor(Math.random() * DIRT_COLORS.length)];
+  dirtObjects.push({
+    x: px, y: py, r, baseColor: color,
+    hp: 1, maxHp: 1,
+    splatPoints: generateSplatPoints(px, py, r, 10),
+    droplets: Array.from({length: 3}, () => ({
+      x: px + (Math.random()-0.5)*r*2,
+      y: py + (Math.random()-0.5)*r*2,
+      r: r * (0.1 + Math.random()*0.15),
+    })),
+  });
+
+  rebuildDirtCanvas();
+  rebuildFinalTexture();
+  countDirtPixels();
+  playOjamaAttackSound();
+}
+
+function ojamaFlee() {
+  ojama.state = 'fleeing';
+  ojama.fleeTimer = OJAMA_FLEE_DURATION;
+  ojama.vx = -(ojama.vx > 0 ? 1 : -1) * (2.5 + Math.random());
+  ojama.vy = -(ojama.vy > 0 ? 1 : -1) * (2.0 + Math.random());
+  playOjamaHitSound();
+}
+
+function updateOjama(dt) {
+  if (!state.running || state.completed) return;
+  const o = ojama;
+
+  if (o.state === 'fleeing') {
+    o.fleeTimer -= dt;
+    o.x += o.vx * 2.5;
+    o.y += o.vy * 2.5;
+    if (o.fleeTimer <= 0) {
+      o.state = 'patrol';
+      o.attackTimer = OJAMA_ATTACK_INTERVAL;
+      o.vx = (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random());
+      o.vy = (Math.random() > 0.5 ? 1 : -1) * (1.2 + Math.random());
+    }
+  } else {
+    o.x += o.vx;
+    o.y += o.vy;
+    o.attackTimer -= dt;
+    if (o.attackTimer <= 0) {
+      ojamaAttack();
+      o.attackTimer = OJAMA_ATTACK_INTERVAL;
+    }
+  }
+
+  // 画面端で反射（上部UIを避ける）
+  const m = o.size;
+  if (o.x < m)                      { o.x = m;                         o.vx =  Math.abs(o.vx); }
+  if (o.x > window.innerWidth - m)  { o.x = window.innerWidth - m;     o.vx = -Math.abs(o.vx); }
+  if (o.y < 80 + m)                 { o.y = 80 + m;                    o.vy =  Math.abs(o.vy); }
+  if (o.y > window.innerHeight - m) { o.y = window.innerHeight - m;    o.vy = -Math.abs(o.vy); }
+}
+
+function drawOjama() {
+  if (state.completed) return;
+  const o = ojama;
+  const size = o.size;
+  const bob  = Math.sin(Date.now() / 200) * 3;
+  const cx   = o.x;
+  const cy   = o.y + bob;
+  const fleeing  = o.state === 'fleeing';
+  const alerting = !fleeing && o.attackTimer < 1200;
+
+  oc.save();
+  oc.globalAlpha = fleeing ? 0.5 : 1.0;
+
+  // 本体
+  oc.fillStyle = fleeing ? '#888888' : (alerting ? '#FF2D78' : '#BF5FFF');
+  oc.beginPath();
+  oc.ellipse(cx, cy, size * 0.5, size * 0.55, 0, 0, Math.PI * 2);
+  oc.fill();
+
+  // 白目
+  oc.fillStyle = '#ffffff';
+  oc.beginPath();
+  oc.arc(cx - size*0.15, cy - size*0.1, size*0.14, 0, Math.PI*2);
+  oc.fill();
+  oc.beginPath();
+  oc.arc(cx + size*0.15, cy - size*0.1, size*0.14, 0, Math.PI*2);
+  oc.fill();
+
+  // 黒目
+  oc.fillStyle = '#000000';
+  oc.beginPath();
+  oc.arc(cx - size*0.15, cy - size*0.08, size*0.08, 0, Math.PI*2);
+  oc.fill();
+  oc.beginPath();
+  oc.arc(cx + size*0.15, cy - size*0.08, size*0.08, 0, Math.PI*2);
+  oc.fill();
+
+  // 口
+  oc.strokeStyle = '#000000';
+  oc.lineWidth = 2;
+  oc.beginPath();
+  if (fleeing) {
+    // びっくり口
+    oc.arc(cx, cy + size*0.18, size*0.12, 0, Math.PI*2);
+    oc.stroke();
+  } else {
+    // 悪い笑み
+    oc.moveTo(cx - size*0.2, cy + size*0.12);
+    oc.quadraticCurveTo(cx, cy + size*0.28, cx + size*0.2, cy + size*0.12);
+    oc.stroke();
+  }
+
+  // 攻撃予告「!」
+  if (alerting) {
+    oc.fillStyle = '#FFE600';
+    oc.font = `bold ${Math.round(size*0.7)}px Arial`;
+    oc.textAlign = 'center';
+    oc.fillText('!', cx, cy - size * 0.7);
+  }
+
+  oc.restore();
 }
 
 // --- ライト ---
@@ -382,6 +550,16 @@ function wipeAtScreen(screenX, screenY) {
   rebuildDirtCanvas();
   rebuildFinalTexture();
   updateCleanPercent();
+
+  // お邪魔キャラとの当たり判定
+  if (ojama.state === 'patrol') {
+    const odx = screenX - ojama.x;
+    const ody = screenY - ojama.y;
+    if (Math.sqrt(odx*odx + ody*ody) < ojama.size * 1.2) {
+      ojamaFlee();
+    }
+  }
+
   return true;
 }
 
@@ -472,14 +650,21 @@ function updateUI() {
 }
 
 // --- メインループ ---
+let _lastLoopTime = Date.now();
+
 function loop() {
   requestAnimationFrame(loop);
+  const _now = Date.now();
+  const _dt  = _now - _lastLoopTime;
+  _lastLoopTime = _now;
+
   if (dpadState.up)    sphere.rotation.x -= ROT_SPEED;
   if (dpadState.down)  sphere.rotation.x += ROT_SPEED;
   if (dpadState.left)  sphere.rotation.y -= ROT_SPEED;
   if (dpadState.right) sphere.rotation.y += ROT_SPEED;
   renderer.render(scene, camera);
   updateParticles();
+  updateOjama(_dt);
   drawParticles();
   updateUI();
 }
