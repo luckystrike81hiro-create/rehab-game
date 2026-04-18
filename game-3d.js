@@ -184,11 +184,30 @@ const finalCtx = finalCanvas.getContext('2d');
 
 const texture = new THREE.CanvasTexture(finalCanvas);
 
-// --- 3Dモデル（球体） ---
-const geometry = new THREE.SphereGeometry(1.5, 64, 64);
+// --- 3Dモデル（モンスターに応じて形状を変える） ---
+const _m3d = JSON.parse(sessionStorage.getItem('currentMonster') || 'null');
+const _shapeIdx = _m3d ? ((_m3d.id - 1) % 3) : 0;
+const _shapeNames = ['トーラスノット', '宝石', '花瓶'];
+
+// 花瓶（ひょうたん形）プロファイル
+const _vasePoints = [];
+for (let i = 0; i <= 24; i++) {
+  const t = i / 24;
+  const y = t * 3.0 - 1.5;
+  const r = 0.2 + 0.9 * Math.abs(Math.sin(t * Math.PI * 2));
+  _vasePoints.push(new THREE.Vector2(Math.max(0.05, r), y));
+}
+
+const _geos = [
+  new THREE.TorusKnotGeometry(1.0, 0.35, 200, 32),  // 0: トーラスノット
+  new THREE.IcosahedronGeometry(1.6, 2),              // 1: 宝石多面体
+  new THREE.LatheGeometry(_vasePoints, 64),           // 2: 花瓶
+];
+const geometry = _geos[_shapeIdx];
 const material = new THREE.MeshPhongMaterial({ map: texture });
 const sphere   = new THREE.Mesh(geometry, material);
 scene.add(sphere);
+document.getElementById('modeLabel').textContent = `3D: ${_shapeNames[_shapeIdx]}`;
 
 // --- 汚れオブジェクト ---
 const DIRT_COLORS = ['#FF2D78','#FF6B00','#00CFFF','#39FF14','#BF5FFF','#FFE600'];
