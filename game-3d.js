@@ -145,20 +145,49 @@ function drawParticles() {
 }
 
 // =============================================
-// お邪魔キャラクター
+// お邪魔キャラクター（画面端からぴょこぴょこ）
 // =============================================
-const OJAMA_ATTACK_INTERVAL = 5000; // ms（攻撃間隔）
-const OJAMA_FLEE_DURATION   = 3000; // ms（逃走時間）
+const OJAMA_HIDE_MIN    = 1500; // ms（隠れ最小時間）
+const OJAMA_HIDE_MAX    = 3000; // ms（隠れ最大時間）
+const OJAMA_PEEK_DUR    = 600;  // ms（端から覗き込む時間）
+const OJAMA_PAUSE_DUR   = 600;  // ms（覗き停止・「!」表示時間）
+const OJAMA_ATTACK_DUR  = 260;  // ms（突入時間）
+const OJAMA_RETREAT_DUR = 320;  // ms（退避時間）
+const OJAMA_FLEE_DUR    = 300;  // ms（逃走アニメ時間）
 
+function _easeOut(t)   { return 1 - (1-t)*(1-t); }
+function _easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function ojamaPickEdge() {
+  const edge = Math.floor(Math.random() * 4);
+  const sz = 36;
+  const W = window.innerWidth, H = window.innerHeight;
+  const rand = 0.2 + Math.random() * 0.6;
+  let hidePos, peekPos;
+  if      (edge === 0) { hidePos={x:W*rand,y:-sz*2};    peekPos={x:W*rand,y:sz*0.4}; }
+  else if (edge === 1) { hidePos={x:W+sz*2,y:H*rand};   peekPos={x:W-sz*0.4,y:H*rand}; }
+  else if (edge === 2) { hidePos={x:W*rand,y:H+sz*2};   peekPos={x:W*rand,y:H-sz*0.4}; }
+  else                 { hidePos={x:-sz*2,y:H*rand};    peekPos={x:sz*0.4,y:H*rand}; }
+  // 攻撃先：モデルがある中央付近
+  const attackPos = {
+    x: W * 0.3 + Math.random() * W * 0.4,
+    y: H * 0.25 + Math.random() * H * 0.5,
+  };
+  return { edge, hidePos, peekPos, attackPos };
+}
+
+const _ojamaInit = ojamaPickEdge();
 const ojama = {
-  x: window.innerWidth  * 0.65,
-  y: window.innerHeight * 0.5,
-  vx: 1.8,
-  vy: 1.3,
+  x: _ojamaInit.hidePos.x,
+  y: _ojamaInit.hidePos.y,
   size: 36,
-  state: 'patrol', // 'patrol' | 'fleeing'
-  attackTimer: OJAMA_ATTACK_INTERVAL,
-  fleeTimer: 0,
+  state: 'hiding', // hiding | peeking | pausing | attacking | retreating | fleeing
+  timer: OJAMA_HIDE_MIN + Math.random() * (OJAMA_HIDE_MAX - OJAMA_HIDE_MIN),
+  edge:      _ojamaInit.edge,
+  hidePos:   _ojamaInit.hidePos,
+  peekPos:   _ojamaInit.peekPos,
+  attackPos: _ojamaInit.attackPos,
+  fleeFrom:  { x: 0, y: 0 },
 };
 
 function playOjamaAttackSound() {
@@ -209,54 +238,83 @@ function ojamaAttack() {
 }
 
 function ojamaFlee() {
+  ojama.fleeFrom = { x: ojama.x, y: ojama.y };
   ojama.state = 'fleeing';
-  ojama.fleeTimer = OJAMA_FLEE_DURATION;
-  ojama.vx = -(ojama.vx > 0 ? 1 : -1) * (2.5 + Math.random());
-  ojama.vy = -(ojama.vy > 0 ? 1 : -1) * (2.0 + Math.random());
+  ojama.timer = OJAMA_FLEE_DUR;
   playOjamaHitSound();
 }
 
+function _ojamaNext() {
+  const next = ojamaPickEdge();
+  ojama.edge = next.edge; ojama.hidePos = next.hidePos;
+  ojama.peekPos = next.peekPos; ojama.attackPos = next.attackPos;
+  ojama.x = next.hidePos.x; ojama.y = next.hidePos.y;
+  ojama.state = 'hiding';
+  ojama.timer = OJAMA_HIDE_MIN + Math.random() * (OJAMA_HIDE_MAX - OJAMA_HIDE_MIN);
+}
+
 function updateOjama(dt) {
-  if (!state.running || state.completed) return;
+  if (state.completed) return;
   const o = ojama;
+  o.timer -= dt;
 
-  if (o.state === 'fleeing') {
-    o.fleeTimer -= dt;
-    o.x += o.vx * 2.5;
-    o.y += o.vy * 2.5;
-    if (o.fleeTimer <= 0) {
-      o.state = 'patrol';
-      o.attackTimer = OJAMA_ATTACK_INTERVAL;
-      o.vx = (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random());
-      o.vy = (Math.random() > 0.5 ? 1 : -1) * (1.2 + Math.random());
-    }
-  } else {
-    o.x += o.vx;
-    o.y += o.vy;
-    o.attackTimer -= dt;
-    if (o.attackTimer <= 0) {
-      ojamaAttack();
-      o.attackTimer = OJAMA_ATTACK_INTERVAL;
-    }
+  let prog;
+  switch (o.state) {
+    case 'hiding':
+      o.x = o.hidePos.x; o.y = o.hidePos.y;
+      if (o.timer <= 0) { o.state = 'peeking'; o.timer = OJAMA_PEEK_DUR; }
+      break;
+
+    case 'peeking':
+      prog = _easeOut(Math.min(1, Math.max(0, 1 - o.timer / OJAMA_PEEK_DUR)));
+      o.x = o.hidePos.x + (o.peekPos.x - o.hidePos.x) * prog;
+      o.y = o.hidePos.y + (o.peekPos.y - o.hidePos.y) * prog;
+      if (o.timer <= 0) { o.x = o.peekPos.x; o.y = o.peekPos.y; o.state = 'pausing'; o.timer = OJAMA_PAUSE_DUR; }
+      break;
+
+    case 'pausing':
+      o.x = o.peekPos.x; o.y = o.peekPos.y;
+      if (o.timer <= 0) { o.state = 'attacking'; o.timer = OJAMA_ATTACK_DUR; }
+      break;
+
+    case 'attacking':
+      prog = _easeInOut(Math.min(1, Math.max(0, 1 - o.timer / OJAMA_ATTACK_DUR)));
+      o.x = o.peekPos.x + (o.attackPos.x - o.peekPos.x) * prog;
+      o.y = o.peekPos.y + (o.attackPos.y - o.peekPos.y) * prog;
+      if (o.timer <= 0) {
+        o.x = o.attackPos.x; o.y = o.attackPos.y;
+        ojamaAttack();
+        o.state = 'retreating'; o.timer = OJAMA_RETREAT_DUR;
+      }
+      break;
+
+    case 'retreating':
+      prog = _easeInOut(Math.min(1, Math.max(0, 1 - o.timer / OJAMA_RETREAT_DUR)));
+      o.x = o.attackPos.x + (o.hidePos.x - o.attackPos.x) * prog;
+      o.y = o.attackPos.y + (o.hidePos.y - o.attackPos.y) * prog;
+      if (o.timer <= 0) { _ojamaNext(); }
+      break;
+
+    case 'fleeing':
+      prog = _easeInOut(Math.min(1, Math.max(0, 1 - o.timer / OJAMA_FLEE_DUR)));
+      o.x = o.fleeFrom.x + (o.hidePos.x - o.fleeFrom.x) * prog;
+      o.y = o.fleeFrom.y + (o.hidePos.y - o.fleeFrom.y) * prog;
+      if (o.timer <= 0) { _ojamaNext(); }
+      break;
   }
-
-  // 画面端で反射（上部UIを避ける）
-  const m = o.size;
-  if (o.x < m)                      { o.x = m;                         o.vx =  Math.abs(o.vx); }
-  if (o.x > window.innerWidth - m)  { o.x = window.innerWidth - m;     o.vx = -Math.abs(o.vx); }
-  if (o.y < 80 + m)                 { o.y = 80 + m;                    o.vy =  Math.abs(o.vy); }
-  if (o.y > window.innerHeight - m) { o.y = window.innerHeight - m;    o.vy = -Math.abs(o.vy); }
 }
 
 function drawOjama() {
   if (state.completed) return;
   const o = ojama;
+  if (o.state === 'hiding') return;
+
   const size = o.size;
-  const bob  = Math.sin(Date.now() / 200) * 3;
-  const cx   = o.x;
-  const cy   = o.y + bob;
+  const bob  = (o.state === 'pausing') ? Math.sin(Date.now() / 160) * 4 : 0;
+  const cx = o.x;
+  const cy = o.y + bob;
   const fleeing  = o.state === 'fleeing';
-  const alerting = !fleeing && o.attackTimer < 1200;
+  const alerting = o.state === 'pausing';
 
   oc.save();
   oc.globalAlpha = fleeing ? 0.5 : 1.0;
@@ -290,17 +348,15 @@ function drawOjama() {
   oc.lineWidth = 2;
   oc.beginPath();
   if (fleeing) {
-    // びっくり口
     oc.arc(cx, cy + size*0.18, size*0.12, 0, Math.PI*2);
     oc.stroke();
   } else {
-    // 悪い笑み
     oc.moveTo(cx - size*0.2, cy + size*0.12);
     oc.quadraticCurveTo(cx, cy + size*0.28, cx + size*0.2, cy + size*0.12);
     oc.stroke();
   }
 
-  // 攻撃予告「!」
+  // 攻撃予告「!」（覗き停止中）
   if (alerting) {
     oc.fillStyle = '#FFE600';
     oc.font = `bold ${Math.round(size*0.7)}px Arial`;
@@ -551,8 +607,8 @@ function wipeAtScreen(screenX, screenY) {
   rebuildFinalTexture();
   updateCleanPercent();
 
-  // お邪魔キャラとの当たり判定
-  if (ojama.state === 'patrol') {
+  // お邪魔キャラとの当たり判定（見えている状態のみ）
+  if (ojama.state !== 'hiding' && ojama.state !== 'fleeing') {
     const odx = screenX - ojama.x;
     const ody = screenY - ojama.y;
     if (Math.sqrt(odx*odx + ody*ody) < ojama.size * 1.2) {
