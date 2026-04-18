@@ -150,8 +150,8 @@ dirLight.position.set(5, 5, 5);
 scene.add(dirLight);
 
 // --- 汚れテクスチャ用キャンバス ---
-const TEX_W = 1024;
-const TEX_H = 1024;
+const TEX_W = 512;
+const TEX_H = 512;
 const dirtCanvas = document.createElement('canvas');
 dirtCanvas.width  = TEX_W;
 dirtCanvas.height = TEX_H;
@@ -316,6 +316,10 @@ function countDirtPixels() {
   }
 }
 
+// cleanPercent 計算の間引き用
+let _lastPercentTime = 0;
+const PERCENT_INTERVAL = 300; // ms
+
 // --- ゲーム状態 ---
 const state = {
   cleanPercent: 0,
@@ -371,6 +375,9 @@ function wipeAtScreen(screenX, screenY) {
 }
 
 function updateCleanPercent() {
+  const now = Date.now();
+  if (now - _lastPercentTime < PERCENT_INTERVAL) return;
+  _lastPercentTime = now;
   const img = dirtCtx.getImageData(0, 0, TEX_W, TEX_H);
   let remaining = 0;
   for (let i = 3; i < img.data.length; i += 4) {
