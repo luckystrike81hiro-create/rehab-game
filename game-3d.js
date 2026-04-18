@@ -187,21 +187,31 @@ const texture = new THREE.CanvasTexture(finalCanvas);
 // --- 3Dモデル（モンスターに応じて形状を変える） ---
 const _m3d = JSON.parse(sessionStorage.getItem('currentMonster') || 'null');
 const _shapeIdx = _m3d ? ((_m3d.id - 1) % 3) : 0;
-const _shapeNames = ['トーラスノット', '宝石', '花瓶'];
+const _shapeNames = ['絡み結び', '深溝球', '太ドーナツ'];
 
-// 花瓶（ひょうたん形）プロファイル
-const _vasePoints = [];
-for (let i = 0; i <= 24; i++) {
-  const t = i / 24;
-  const y = t * 3.0 - 1.5;
-  const r = 0.2 + 0.9 * Math.abs(Math.sin(t * Math.PI * 2));
-  _vasePoints.push(new THREE.Vector2(Math.max(0.05, r), y));
+// 深溝球（パンプキン形：8本の深い縦溝）
+function createFlutedSphere() {
+  const geo = new THREE.SphereGeometry(1.5, 128, 64);
+  const pos = geo.attributes.position;
+  const ridges = 8;
+  const depth  = 0.38;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const r   = Math.sqrt(x*x + y*y + z*z);
+    const phi = Math.atan2(z, x);
+    const theta = Math.acos(Math.max(-1, Math.min(1, y / r)));
+    const groove = 1 + depth * Math.cos(phi * ridges) * Math.sin(theta);
+    const nr = r * groove;
+    pos.setXYZ(i, x/r*nr, y/r*nr, z/r*nr);
+  }
+  geo.computeVertexNormals();
+  return geo;
 }
 
 const _geos = [
-  new THREE.TorusKnotGeometry(1.0, 0.35, 200, 32),  // 0: トーラスノット
-  new THREE.IcosahedronGeometry(1.6, 2),              // 1: 宝石多面体
-  new THREE.LatheGeometry(_vasePoints, 64),           // 2: 花瓶
+  new THREE.TorusKnotGeometry(1.0, 0.25, 512, 12, 5, 3), // 0: 複雑絡み結び（細・多重巻き）
+  createFlutedSphere(),                                    // 1: 深溝球（谷が深く回転必須）
+  new THREE.TorusGeometry(1.1, 0.72, 48, 128),           // 2: 太ドーナツ（内側が死角）
 ];
 const geometry = _geos[_shapeIdx];
 const material = new THREE.MeshPhongMaterial({ map: texture });
@@ -425,7 +435,7 @@ function updateUI() {
   const m = String(Math.floor(elapsed/60)).padStart(2,'0');
   const s = String(elapsed%60).padStart(2,'0');
   document.getElementById('timer').textContent = `${m}:${s}`;
-  if (state.cleanPercent >= 95 && !state.completed) {
+  if (state.cleanPercent >= 99 && !state.completed) {
     state.completed = true;
     state.running = false;
     const el = document.getElementById('message');
