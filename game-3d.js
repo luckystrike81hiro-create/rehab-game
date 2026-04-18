@@ -361,12 +361,8 @@ function wipeAtScreen(screenX, screenY) {
   const py = (1 - uv.y) * TEX_H;
   const r  = WIPE_UV_R * TEX_W;
 
-  // wipeCanvasに消去ストローク追加
-  const grad = wipeCtx.createRadialGradient(px, py, 0, px, py, r);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.6, 'rgba(255,255,255,0.9)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  wipeCtx.fillStyle = grad;
+  // wipeCanvasに消去ストローク追加（ソリッド円：触れた箇所だけ正確に消去）
+  wipeCtx.fillStyle = 'rgba(255,255,255,1)';
   wipeCtx.beginPath();
   wipeCtx.arc(px, py, r, 0, Math.PI*2);
   wipeCtx.fill();
